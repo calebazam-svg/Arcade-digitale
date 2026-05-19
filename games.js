@@ -117,7 +117,6 @@
     var SEGLEN=200, NSEG=560, ROADW=1400, CAMH=1000;
     var CAMD=1/Math.tan((100/2)*Math.PI/180), DRAW=180;
     var trackLen=NSEG*SEGLEN;
-    // build a looping track with a few curves
     var segs=[];
     for(var i=0;i<NSEG;i++){
       var cv=0;
@@ -139,49 +138,122 @@
       p.screen.w=Math.round(p.screen.scale*ROADW*W/2);
     }
     var pos=0, playerX=0, speed=0, maxSpd=cfg.maxSpd||12000, lap=1, laps=cfg.laps||3;
-    var boostT=0, finished=false, raceT=0;
+    var boostT=0, spinT=0, shieldT=0, finished=false, raceT=0;
+    var item="", banner="", bannerT=0;
+    var ITEMS=["boost","shell","mine","shield"];
     var rivals=[];
     for(var r=0;r<(cfg.rivals||4);r++)
-      rivals.push({ z:(r+1)*900, off:rnd(-0.55,0.55),
-        spd:(cfg.maxSpd||12000)*(0.62+r*0.045), tot:0 });
+      rivals.push({ z:(r+1)*900, off:rnd(-0.55,0.55), tot:0,
+        spd:(cfg.maxSpd||12000)*0.6, base:0.55+Math.random()*0.12,
+        item:ITEMS[ri(0,3)], icd:rnd(3,7), spin:0 });
+    var boxes=[];
+    for(var bx=0;bx<14;bx++) boxes.push({z:(bx+1)*(trackLen/15),off:rnd(-0.55,0.55),t:0});
+    var shells=[], mines=[];
     var pads=[];
     if(cfg.boost) for(var b=0;b<10;b++) pads.push({z:rnd(0,trackLen),off:rnd(-0.5,0.5)});
     function segAt(z){ return segs[Math.floor(z/SEGLEN)%NSEG]; }
+    function dzf(a,b){ return ((a-b)%trackLen+trackLen)%trackLen; }
+    function flash(msg){ banner=msg; bannerT=1.4; }
 
     return { score:0, over:false,
       update:function(dt){
         if(finished){ this.over=true; return; }
-        raceT+=dt;
-        // accelerate automatically, steer L/R, A = boost
-        speed += (maxSpd*0.55 - speed*0.45)*dt;
-        if((IN.edge.action||IN.held.action)&&boostT<=0) boostT=1.0;
-        if(boostT>0){ boostT-=dt; speed=Math.min(maxSpd*1.55,speed+maxSpd*1.4*dt); }
-        var steer=(speed/maxSpd)*2.6;
+        raceT+=dt; if(bannerT>0)bannerT-=dt;
+        if(shieldT>0)shieldT-=dt;
+        speed += (maxSpd*0.56 - speed*0.46)*dt;
+        if(spinT>0){ spinT-=dt; speed*=Math.pow(0.12,dt); }
+        if(boostT>0){ boostT-=dt; speed=Math.min(maxSpd*1.6,speed+maxSpd*1.5*dt); }
+        // use item with A
+        if((IN.edge.action)&&item&&spinT<=0){
+          if(item==="boost"){ boostT=Math.max(boostT,1.3); flash("BOOST!"); }
+          else if(item==="shell"){ shells.push({z:pos+260,off:playerX,own:-1}); flash("SHELL FIRED"); }
+          else if(item==="mine"){ mines.push({z:pos-120,off:playerX}); flash("MINE DROPPED"); }
+          else if(item==="shield"){ shieldT=5; flash("SHIELD UP"); }
+          item="";
+        }
+        var steer=(speed/maxSpd)*2.6*(spinT>0?0:1);
         if(IN.held.left)  playerX-=steer*dt;
         if(IN.held.right) playerX+=steer*dt;
         playerX-=(segAt(pos).curve)*(speed/maxSpd)*dt*0.45;
-        if(Math.abs(playerX)>1.05){ speed*=Math.pow(0.4,dt); }   // off-road drag
+        if(Math.abs(playerX)>1.05){ speed*=Math.pow(0.4,dt); }
         playerX=Math.max(-2,Math.min(2,playerX));
-        // rival contact
-        for(var ri2=0;ri2<rivals.length;ri2++){
-          var rv=rivals[ri2];
-          var dz=((rv.z-pos)%trackLen+trackLen)%trackLen;
-          if(dz<160 && Math.abs(rv.off-playerX)<0.42){ speed*=Math.pow(0.25,dt); }
-          rv.spd += ((cfg.maxSpd||12000)*0.6 - rv.spd*0.5)*dt*0;
-          rv.z+=rv.spd*dt; rv.tot+=rv.spd*dt;
-          rv.off+=(Math.sin((rv.z+ri2*400)/1400)*0.5-rv.off)*0.6*dt;
+        // item boxes
+        for(var ib=0;ib<boxes.length;ib++){
+          var bo=boxes[ib];
+          if(bo.t>0){ bo.t-=dt; continue; }
+          if(dzf(bo.z,pos)<150 && Math.abs(bo.off-playerX)<0.34){
+            if(!item){ item=ITEMS[ri(0,3)]; flash("GOT "+item.toUpperCase()); }
+            bo.t=4;
+          }
+          for(var rq=0;rq<rivals.length;rq++)
+            if(bo.t<=0 && dzf(bo.z,rivals[rq].z)<150 && Math.abs(bo.off-rivals[rq].off)<0.34){
+              if(!rivals[rq].item) rivals[rq].item=ITEMS[ri(0,3)]; bo.t=4;
+            }
         }
+        // shells travel forward, hit any kart
+        for(var s=0;s<shells.length;s++){
+          var sh=shells[s]; sh.z+=maxSpd*1.7*dt;
+          if(sh.own!==-1 && dzf(pos,sh.z)<140 && dzf(pos,sh.z)>=0 && Math.abs(playerX-sh.off)<0.4 && shieldT<=0 && spinT<=0){
+            spinT=1.5; flash("SPUN OUT!"); sh.dead=true; continue;
+          }
+          for(var rk=0;rk<rivals.length;rk++){
+            var rr=rivals[rk];
+            if(sh.own!==rk && dzf(rr.z,sh.z)<140 && Math.abs(rr.off-sh.off)<0.4 && rr.spin<=0){
+              rr.spin=1.5; sh.dead=true; if(sh.own===-1)this.score+=30; break;
+            }
+          }
+          if(dzf(sh.z,pos)>trackLen*0.6) sh.dead=true;
+        }
+        shells=shells.filter(function(o){return !o.dead;});
+        // mines
+        for(var m=0;m<mines.length;m++){
+          var mi=mines[m];
+          if(dzf(mi.z,pos)<90 && Math.abs(mi.off-playerX)<0.3 && shieldT<=0 && spinT<=0){
+            spinT=1.4; flash("HIT A MINE!"); mi.dead=true; continue;
+          }
+          for(var rm=0;rm<rivals.length;rm++)
+            if(dzf(mi.z,rivals[rm].z)<90 && Math.abs(mi.off-rivals[rm].off)<0.3 && rivals[rm].spin<=0){
+              rivals[rm].spin=1.4; mi.dead=true; this.score+=15; break;
+            }
+        }
+        mines=mines.filter(function(o){return !o.dead;});
         if(cfg.boost) for(var p=0;p<pads.length;p++){
-          var pd=pads[p], pdz=((pd.z-pos)%trackLen+trackLen)%trackLen;
+          var pd=pads[p], pdz=dzf(pd.z,pos);
           if(pdz<150 && Math.abs(pd.off-playerX)<0.34 && !pd._h){ pd._h=raceT; boostT=Math.max(boostT,0.9); this.score+=25; }
           if(pd._h && raceT-pd._h>3) pd._h=0;
         }
+        // rival AI: rubber-band speed + use items + race the player
+        var me=(lap-1)*trackLen+pos;
+        for(var ri2=0;ri2<rivals.length;ri2++){
+          var rv=rivals[ri2];
+          if(rv.spin>0){ rv.spin-=dt; rv.spd*=Math.pow(0.15,dt); }
+          else {
+            var lead=(me - rv.tot)/trackLen;            // +ve = player ahead
+            var tgt=maxSpd*(rv.base + Math.max(-0.08,Math.min(0.22,lead*0.5)));
+            rv.spd += (tgt - rv.spd)*1.5*dt;
+          }
+          rv.icd-=dt;
+          if(rv.icd<=0 && rv.spin<=0){
+            rv.icd=rnd(4,8);
+            if(rv.item==="boost"){ rv.spd*=1.5; rv.item=""; }
+            else if(rv.item==="shell"){ shells.push({z:rv.z+200,off:rv.off,own:ri2}); rv.item=""; }
+            else if(rv.item==="mine"){ mines.push({z:rv.z-100,off:rv.off}); rv.item=""; }
+            else if(rv.item==="shield"){ rv.item=""; }
+            else rv.item=ITEMS[ri(0,3)];
+          }
+          rv.z+=rv.spd*dt; rv.tot+=rv.spd*dt;
+          rv.off+=(Math.sin((rv.z+ri2*400)/1400)*0.5-rv.off)*0.6*dt;
+          // body-check between player and rival
+          if(dzf(rv.z,pos)<150 && Math.abs(rv.off-playerX)<0.4){
+            speed*=Math.pow(0.3,dt); rv.spd*=Math.pow(0.5,dt);
+          }
+        }
         pos+=speed*dt;
-        if(pos>=trackLen){ pos-=trackLen; lap++; this.score+=200;
+        if(pos>=trackLen){ pos-=trackLen; lap++;
+          if(lap<=laps){ this.score+=200; flash("LAP "+lap); }
           if(lap>laps){ finished=true;
-            // finishing place bonus
-            var ahead=0,me=(lap-1)*trackLen+pos;
-            for(var q=0;q<rivals.length;q++) if(rivals[q].tot>me) ahead++;
+            var ahead=0,fin=(lap-1)*trackLen+pos;
+            for(var q=0;q<rivals.length;q++) if(rivals[q].tot>fin) ahead++;
             this.score += [600,400,250,150,80][Math.min(ahead,4)];
           }
         }
@@ -208,10 +280,8 @@
           var w1=seg.p1.screen.w,w2=seg.p2.screen.w;
           var x1=seg.p1.screen.x,x2=seg.p2.screen.x;
           var dark=((seg.index/3)|0)%2===0;
-          // grass band
           ctx.fillStyle=dark?cfg.grass:cfg.grass2;
           ctx.fillRect(0,y2,W,y1-y2);
-          // rumble + road
           ctx.fillStyle=dark?"#ffffff":"#ff3ea5";
           poly(x1-w1*1.18,y1,x1+w1*1.18,y1,x2+w2*1.18,y2,x2-w2*1.18,y2);
           ctx.fillStyle=dark?cfg.road:cfg.road2;
@@ -220,29 +290,52 @@
             poly(x1-w1*0.04,y1,x1+w1*0.04,y1,x2+w2*0.04,y2,x2-w2*0.04,y2); }
           maxy=y2;
         }
+        function atZ(z){ return anchor[Math.floor(z/SEGLEN)%NSEG]; }
         // boost pads
         if(cfg.boost) for(var p=0;p<pads.length;p++){
           var pd=pads[p]; if(pd._h)continue;
-          var si=Math.floor(pd.z/SEGLEN)%NSEG, a=anchor[si];
-          if(!a||a.sc<=0)continue;
-          var pw=a.w*0.34;
-          rect(a.x+pd.off*a.w-pw/2, a.y-pw*0.4, pw, pw*0.5, "#46ff9c");
+          var a=atZ(pd.z); if(!a||a.sc<=0)continue;
+          var pw=a.w*0.34; rect(a.x+pd.off*a.w-pw/2,a.y-pw*0.4,pw,pw*0.5,"#46ff9c");
+        }
+        // item boxes
+        for(var ib=0;ib<boxes.length;ib++){
+          var bo=boxes[ib]; if(bo.t>0)continue;
+          var ab=atZ(bo.z); if(!ab||ab.sc<=0)continue;
+          var bw=ab.w*0.3; if(bw<4)continue;
+          var bcx=ab.x+bo.off*ab.w, bcy=ab.y-bw;
+          rect(bcx-bw/2,bcy,bw,bw,"#27e8ff");
+          rect(bcx-bw/2,bcy,bw,bw/4,"#9b6bff");
+          px_txt("?",bcx,bcy+bw*0.78,Math.max(6,bw*0.5)|0,"#fff");
+        }
+        // mines
+        for(var m=0;m<mines.length;m++){
+          var mi=mines[m], am=atZ(mi.z); if(!am||am.sc<=0)continue;
+          var ms=Math.max(3,am.w*0.12);
+          rect(am.x+mi.off*am.w-ms/2,am.y-ms/2,ms,ms,"#ff3ea5");
+        }
+        // shells
+        for(var s=0;s<shells.length;s++){
+          var sh=shells[s], as=atZ(sh.z); if(!as||as.sc<=0)continue;
+          var ss=Math.max(4,as.w*0.18);
+          ctx.fillStyle="#46ff9c";
+          ctx.beginPath();ctx.arc(as.x+sh.off*as.w,as.y-ss/2,ss/2,0,7);ctx.fill();
         }
         // rivals (far to near)
-        var rs=rivals.slice().sort(function(a,b){
-          return (((b.z-pos)%trackLen+trackLen)%trackLen)-(((a.z-pos)%trackLen+trackLen)%trackLen); });
+        var rs=rivals.slice().sort(function(a,b){ return dzf(b.z,pos)-dzf(a.z,pos); });
         for(var ri3=0;ri3<rs.length;ri3++){
-          var rv=rs[ri3], si2=Math.floor(rv.z/SEGLEN)%NSEG, a2=anchor[si2];
-          if(!a2||a2.sc<=0)continue;
-          var cw=a2.sc*2600, ch=cw*0.8;
-          if(cw<3)continue;
+          var rv=rs[ri3], a2=atZ(rv.z); if(!a2||a2.sc<=0)continue;
+          var cw=a2.sc*2600, ch=cw*0.8; if(cw<3)continue;
           var rxp=a2.x+rv.off*a2.w, ryp=a2.y;
-          rect(rxp-cw/2,ryp-ch,cw,ch,cfg.rival);
-          rect(rxp-cw*0.34,ryp-ch*0.7,cw*0.68,ch*0.4,"#1a1a2a");
+          var wob=rv.spin>0?Math.sin(raceT*30)*cw*0.18:0;
+          rect(rxp-cw/2+wob,ryp-ch,cw,ch,rv.spin>0?"#ff8a8a":cfg.rival);
+          rect(rxp-cw*0.34+wob,ryp-ch*0.7,cw*0.68,ch*0.4,"#1a1a2a");
         }
-        // player kart (fixed, bottom)
-        var pcx=W/2+ (IN.held.left?-6:IN.held.right?6:0), pcy=H-46;
-        rect(pcx-26,pcy-6,52,30,cfg.player);
+        // player kart
+        var pwob=spinT>0?Math.sin(raceT*32)*10:0;
+        var pcx=W/2+pwob+(IN.held.left?-6:IN.held.right?6:0), pcy=H-46;
+        if(shieldT>0){ ctx.save();ctx.globalAlpha=.4;ctx.fillStyle="#27e8ff";
+          ctx.beginPath();ctx.arc(pcx,pcy+6,42,0,7);ctx.fill();ctx.restore(); }
+        rect(pcx-26,pcy-6,52,30,spinT>0?"#ff8a8a":cfg.player);
         rect(pcx-30,pcy+18,12,12,"#1a1a1a");
         rect(pcx+18,pcy+18,12,12,"#1a1a1a");
         rect(pcx-16,pcy-16,32,14,"#1a1a2a");
@@ -256,7 +349,10 @@
         px_txt(place+(["TH","ST","ND","RD","TH"][place]||"TH"),W-8,20,9,"#ffd23e","right");
         px_txt(Math.round(speed/55)+" KM/H",W/2,H-10,7,"#fff");
         px_txt(""+this.score,W/2,20,11,"#ffd23e");
-        if(boostT>0) px_txt("BOOST!",W/2,40,9,"#46ff9c");
+        // item slot
+        ctx.strokeStyle="#9b6bff";ctx.lineWidth=2;ctx.strokeRect(W/2-22,30,44,26);
+        px_txt(item?item.toUpperCase().slice(0,5):"—",W/2,48,7,item?"#46ff9c":"#5a4a7a");
+        if(bannerT>0) px_txt(banner,W/2,H/2,11,"#ffd23e");
       }};
   }
 
@@ -295,47 +391,147 @@
       }};
   });
 
-  /* 2. Maze Muncher (endless pellet eater + ghost) */
-  reg("muncher","Arrow keys / D-pad to move. Eat every pellet, dodge the pink ghost. Clear board = +300.",
+  /* 2. Maze Muncher (classic Pac-Man: pellets, power pellets, 3 ghosts, levels) */
+  reg("muncher","Arrows / D-pad to munch every pellet. Big flashing power pellets turn the ghosts blue — chase them down for 200 each! Clearing the maze = +500 and the next level.",
   function(){
-    var C=8,R=6,CS=60,grid,pellets,px,py,wdx=0,wdy=0,gx,gy,pt=0,gt=0;
-    function build(){
-      grid=[];pellets=0;
-      for(var y=0;y<R;y++){var row=[];for(var x=0;x<C;x++){
-        var wall=(x===0||y===0||x===C-1||y===R-1)||(x%2===0&&y%2===0&&x>1&&x<C-2&&y>1&&y<R-2);
-        row.push(wall?1:2); if(!wall)pellets++; } grid.push(row);}
-      px=1;py=1; if(grid[1][1]===2){grid[1][1]=0;pellets--;}
-      gx=C-2;gy=R-2; if(grid[gy][gx]===2){grid[gy][gx]=0;pellets--;}
+    var COLS=20, ROWS=15, TS=24;
+    var BLK=[[2,2,3,4],[5,2,6,3],[8,2,8,6],[2,6,3,6],[5,5,6,6],
+             [2,9,3,12],[5,9,6,10],[8,9,8,12]];
+    var POW=[[1,1],[18,1],[1,13],[18,13]];
+    var SPAWN=[[9,7],[10,7],[11,7]];
+    var GCOL=["#ff3ea5","#27e8ff","#ffb84d"];
+    var wall=[], dots=[], pellets=0, level=1;
+    function isW(x,y){
+      if(y===7&&(x<0||x>=COLS)) return false;          // tunnel
+      if(x<0||y<0||x>=COLS||y>=ROWS) return true;
+      return wall[y][x];
     }
-    build();
-    function ok(x,y){return x>=0&&y>=0&&x<C&&y<R&&grid[y][x]!==1;}
+    function buildWalls(){
+      wall=[];
+      for(var y=0;y<ROWS;y++){ var rw=[];
+        for(var x=0;x<COLS;x++) rw.push(x===0||x===COLS-1||y===0||y===ROWS-1);
+        wall.push(rw); }
+      wall[7][0]=false; wall[7][COLS-1]=false;
+      function block(a,b,c,d){
+        for(var y=b;y<=d;y++)for(var x=a;x<=c;x++){ wall[y][x]=true; wall[y][COLS-1-x]=true; }
+      }
+      for(var i=0;i<BLK.length;i++) block(BLK[i][0],BLK[i][1],BLK[i][2],BLK[i][3]);
+    }
+    function isSpawn(x,y){ for(var i=0;i<SPAWN.length;i++) if(SPAWN[i][0]===x&&SPAWN[i][1]===y) return true; return false; }
+    function fillDots(){
+      dots=[]; pellets=0;
+      for(var y=0;y<ROWS;y++){ var rw=[];
+        for(var x=0;x<COLS;x++){
+          var v=0;
+          if(!isW(x,y)&&!isSpawn(x,y)&&!(x===10&&y===13)){
+            v=1; for(var p=0;p<POW.length;p++) if(POW[p][0]===x&&POW[p][1]===y) v=2;
+            pellets++;
+          }
+          rw.push(v);
+        } dots.push(rw); }
+    }
+    buildWalls(); fillDots();
+    function mkPac(){ return {tx:10,ty:13,dx:0,dy:0,p:0}; }
+    function mkGhosts(){
+      var g=[];
+      for(var i=0;i<3;i++) g.push({tx:SPAWN[i][0],ty:SPAWN[i][1],dx:0,dy:0,p:0.5,fr:0,col:GCOL[i],home:SPAWN[i]});
+      return g;
+    }
+    var pac=mkPac(), ghosts=mkGhosts(), frightT=0, mouth=0;
+    function step(e,spd,dt,pick){
+      e.p += spd*dt;
+      while(e.p>=1){
+        e.p-=1; e.tx+=e.dx; e.ty+=e.dy;
+        if(e.tx<0)e.tx=COLS-1; if(e.tx>=COLS)e.tx=0;       // tunnel wrap
+        var nd=pick(e);
+        e.dx=nd[0]; e.dy=nd[1];
+        if(isW(e.tx+e.dx,e.ty+e.dy)){ e.dx=0; e.dy=0; e.p=0; }
+      }
+    }
     return { score:0, over:false,
       update:function(dt){
-        if(IN.dir==="L"){wdx=-1;wdy=0;} if(IN.dir==="R"){wdx=1;wdy=0;}
-        if(IN.dir==="U"){wdx=0;wdy=-1;} if(IN.dir==="D"){wdx=0;wdy=1;}
-        pt+=dt; if(pt>=0.18){ pt=0;
-          if((wdx||wdy)&&ok(px+wdx,py+wdy)){ px+=wdx;py+=wdy;
-            if(grid[py][px]===2){grid[py][px]=0;pellets--;this.score+=10;
-              if(pellets<=0){this.score+=300;build();}}}}
-        gt+=dt; if(gt>=0.26){ gt=0;
-          var d=[[1,0],[-1,0],[0,1],[0,-1]].filter(function(v){return ok(gx+v[0],gy+v[1]);});
-          d.sort(function(a,b){return (Math.abs(gx+a[0]-px)+Math.abs(gy+a[1]-py))-(Math.abs(gx+b[0]-px)+Math.abs(gy+b[1]-py));});
-          if(d[0]){gx+=d[0][0];gy+=d[0][1];}}
-        if(gx===px&&gy===py)this.over=true;
+        mouth=(mouth+dt*10)%2;
+        if(frightT>0){ frightT-=dt; if(frightT<=0) for(var i=0;i<ghosts.length;i++) ghosts[i].fr=0; }
+        var want=[pac.dx,pac.dy];
+        if(IN.dir==="L")want=[-1,0]; if(IN.dir==="R")want=[1,0];
+        if(IN.dir==="U")want=[0,-1]; if(IN.dir==="D")want=[0,1];
+        // pac can start/turn instantly if not currently moving
+        if((pac.dx===0&&pac.dy===0)&&!isW(pac.tx+want[0],pac.ty+want[1])){ pac.dx=want[0];pac.dy=want[1]; }
+        step(pac, 5+level*0.3, dt, function(e){
+          if(!isW(e.tx+want[0],e.ty+want[1])&&(want[0]||want[1])) return want;
+          if(!isW(e.tx+e.dx,e.ty+e.dy)) return [e.dx,e.dy];
+          return [0,0];
+        });
+        var d=dots[pac.ty]&&dots[pac.ty][pac.tx];
+        if(d){ dots[pac.ty][pac.tx]=0; pellets--; this.score+=10;
+          if(d===2){ this.score+=40; frightT=6; for(var gi=0;gi<ghosts.length;gi++) ghosts[gi].fr=1; }
+          if(pellets<=0){ this.score+=500; level++; fillDots(); pac=mkPac(); ghosts=mkGhosts(); frightT=0; return; }
+        }
+        for(var g=0;g<ghosts.length;g++){
+          var gh=ghosts[g];
+          step(gh, (gh.fr?3.2:4.4+level*0.35), dt, function(e){
+            var opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(function(v){
+              return !isW(e.tx+v[0],e.ty+v[1]) && !(v[0]===-e.dx&&v[1]===-e.dy);
+            });
+            if(!opts.length) opts=[[-e.dx,-e.dy]];
+            var tgx=pac.tx,tgy=pac.ty;
+            if(e.col===GCOL[1]){ tgx=pac.tx+pac.dx*3; tgy=pac.ty+pac.dy*3; }
+            if(e.col===GCOL[2]){ tgx=e.fr?Math.random()*COLS:pac.tx; tgy=e.fr?Math.random()*ROWS:pac.ty; }
+            opts.sort(function(a,b){
+              var da=Math.hypot(e.tx+a[0]-tgx,e.ty+a[1]-tgy);
+              var db=Math.hypot(e.tx+b[0]-tgx,e.ty+b[1]-tgy);
+              return e.fr? db-da : da-db;
+            });
+            return opts[0];
+          });
+          if(gh.tx===pac.tx&&gh.ty===pac.ty){
+            if(gh.fr){ this.score+=200; gh.tx=gh.home[0]; gh.ty=gh.home[1]; gh.dx=0; gh.dy=0; gh.p=0.5; gh.fr=0; }
+            else { this.over=true; return; }
+          }
+        }
       },
       draw:function(){
-        clear("#05030f","#0a0613");
-        for(var y=0;y<R;y++)for(var x=0;x<C;x++){
-          if(grid[y][x]===1)rect(x*CS+2,y*CS+2,CS-4,CS-4,"#3a2a6b");
-          else if(grid[y][x]===2){ctx.fillStyle="#ffd23e";ctx.beginPath();ctx.arc(x*CS+CS/2,y*CS+CS/2,5,0,7);ctx.fill();}}
-        ctx.fillStyle="#27e8ff";ctx.beginPath();
-        ctx.moveTo(px*CS+CS/2,py*CS+CS/2);
-        ctx.arc(px*CS+CS/2,py*CS+CS/2,CS/2-8,0.3,Math.PI*2-0.3);
+        clear("#02030f","#06030f");
+        for(var y=0;y<ROWS;y++)for(var x=0;x<COLS;x++){
+          if(isW(x,y)){
+            rect(x*TS+2,y*TS+2,TS-4,TS-4,"#1a1f6b");
+            rect(x*TS+5,y*TS+5,TS-10,TS-10,"#0a1240");
+          } else {
+            var v=dots[y][x];
+            if(v===1){ ctx.fillStyle="#ffd9a8";ctx.beginPath();ctx.arc(x*TS+TS/2,y*TS+TS/2,3,0,7);ctx.fill(); }
+            else if(v===2 && mouth<1.4){ ctx.fillStyle="#ffd23e";ctx.beginPath();ctx.arc(x*TS+TS/2,y*TS+TS/2,7,0,7);ctx.fill(); }
+          }
+        }
+        // pac with animated mouth
+        var pcx=(pac.tx+pac.dx*pac.p)*TS+TS/2, pcy=(pac.ty+pac.dy*pac.p)*TS+TS/2;
+        var ang=pac.dx<0?Math.PI:pac.dx>0?0:pac.dy<0?-Math.PI/2:Math.PI/2;
+        var m=Math.abs(Math.sin(mouth*Math.PI))*0.32+0.04;
+        ctx.fillStyle="#ffd23e";ctx.beginPath();
+        ctx.moveTo(pcx,pcy);
+        ctx.arc(pcx,pcy,TS/2-2,ang+m,ang+Math.PI*2-m);
         ctx.closePath();ctx.fill();
-        ctx.fillStyle="#ff3ea5";ctx.beginPath();
-        ctx.arc(gx*CS+CS/2,gy*CS+CS/2-4,CS/2-8,Math.PI,0);
-        ctx.rect(gx*CS+8,gy*CS+CS/2-12,CS-16,CS/2-2);ctx.fill();
-        px_txt("PELLETS "+pellets,W/2,H-8,7,"#9b8fc7");
+        // ghosts
+        for(var g=0;g<ghosts.length;g++){
+          var gh=ghosts[g];
+          var gxp=(gh.tx+gh.dx*gh.p)*TS+TS/2, gyp=(gh.ty+gh.dy*gh.p)*TS+TS/2;
+          var col=gh.fr?(frightT<2&&Math.floor(frightT*6)%2?"#fff":"#2a47ff"):gh.col;
+          ctx.fillStyle=col;ctx.beginPath();
+          ctx.arc(gxp,gyp-2,TS/2-4,Math.PI,0);
+          ctx.lineTo(gxp+TS/2-4,gyp+TS/2-5);
+          ctx.lineTo(gxp+(TS/2-4)*0.4,gyp+TS/2-9);
+          ctx.lineTo(gxp,gyp+TS/2-5);
+          ctx.lineTo(gxp-(TS/2-4)*0.4,gyp+TS/2-9);
+          ctx.lineTo(gxp-(TS/2-4),gyp+TS/2-5);
+          ctx.closePath();ctx.fill();
+          ctx.fillStyle="#fff";
+          ctx.beginPath();ctx.arc(gxp-4,gyp-3,3,0,7);ctx.arc(gxp+4,gyp-3,3,0,7);ctx.fill();
+          ctx.fillStyle="#0a0613";
+          ctx.beginPath();ctx.arc(gxp-4+gh.dx,gyp-3+gh.dy,1.5,0,7);ctx.arc(gxp+4+gh.dx,gyp-3+gh.dy,1.5,0,7);ctx.fill();
+        }
+        px_txt("L"+level,18,16,7,"#9b8fc7","left");
+        px_txt("PELLETS "+pellets,W-8,16,7,"#9b8fc7","right");
+        px_txt(""+this.score,W/2,16,9,"#ffd23e");
+        if(frightT>0) px_txt("HUNT!",W/2,H-8,8,"#27e8ff");
       }};
   });
 
@@ -707,7 +903,7 @@
   });
 
   /* 8. Turbo Circuit (pseudo-3D circuit sprint — 3 fast laps vs rivals) */
-  reg("dodger","Steer Left/Right, A / Space for a turbo burst. It's a 3-lap circuit race — take the racing line, pass the rivals, finish on the podium for a big bonus.",
+  reg("dodger","3-lap battle race vs 5 AI rivals. Steer Left/Right, drive through blue ? boxes for an item, press A to use it: BOOST, SHELL (spins a kart ahead), MINE (drop a trap), SHIELD. Rivals grab items and fight back too — finish on the podium for a big bonus.",
   function(){
     return makeRacer({
       laps:3, rivals:5, maxSpd:13000, boost:false,
@@ -717,7 +913,7 @@
   });
 
   /* 9. Kart Kombat (Mario-Kart-style: 3 laps, rivals + green boost pads) */
-  reg("kart","Mario-Kart-style race! Steer Left/Right, hit A / Space for a turbo. Hit the green boost pads on the track for speed + points. 3 laps — beat the rival karts to the line.",
+  reg("kart","Mario-Kart-style item battle! Steer Left/Right, grab blue ? boxes and press A to fire your item: BOOST, SHELL (spin a kart), MINE, SHIELD. Green pads give bonus turbo. 5 AI rivals throw items back at you — survive 3 laps and beat them to the line.",
   function(){
     return makeRacer({
       laps:3, rivals:5, maxSpd:12000, boost:true,
@@ -726,22 +922,26 @@
     });
   });
 
-  /* 10. FPS Arena (TRUE first-person: turn to aim, blast the advancing wave) */
-  reg("shooter","First-person arena. Left/Right turns your view, A / Space fires at the crosshair. Gun down the whole wave before they reach you — clearing a wave is +150.",
+  /* 10. FPS Arena (TRUE first-person, level/wave campaign) */
+  reg("shooter","First-person arena campaign. Left/Right turns your view, A / Space fires at the crosshair. Each LEVEL has 4 waves — clear a wave (+150), beat all 4 to advance the level (+400). Armored foes from level 3 take two hits. Don't let anything reach you.",
   function(){
-    var HFOV=Math.PI/3;                 // half field of view
-    var aim=0, en=[], wave=1, cd=0, flash=0;
+    var HFOV=Math.PI/3;
+    var WPL=4;                          // waves per level
+    var aim=0, en=[], level=1, wave=1, cd=0, flash=0, banner="LEVEL 1", bannerT=1.6;
     function spawn(){
       en=[];
-      var n=Math.min(3+wave,9);
-      for(var i=0;i<n;i++)
-        en.push({ ang:rnd(-Math.PI,Math.PI), dist:rnd(620,900),
-                  spd:38+wave*7, d:false });
+      var n=Math.min(3+wave+level,11);
+      for(var i=0;i<n;i++){
+        var armored=level>=3 && Math.random()<0.25+level*0.03;
+        en.push({ ang:rnd(-Math.PI,Math.PI), dist:rnd(640,940),
+                  spd:34+wave*6+level*9, hp:armored?2:1, arm:armored, d:false });
+      }
     }
     spawn();
     function angDiff(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b));}
     return { score:0, over:false,
       update:function(dt){
+        if(bannerT>0)bannerT-=dt;
         if(IN.held.left)  aim-=2.2*dt;
         if(IN.held.right) aim+=2.2*dt;
         if(aim> Math.PI)aim-=Math.PI*2;
@@ -749,14 +949,13 @@
         cd-=dt; flash-=dt;
         if((IN.edge.action||IN.held.action)&&cd<=0){
           cd=0.3; flash=0.06;
-          // hit the closest enemy near the crosshair centre
           var best=-1,bd=1e9;
           for(var i=0;i<en.length;i++){
             if(en[i].d)continue;
             var off=Math.abs(angDiff(en[i].ang,aim));
             if(off<0.14 && en[i].dist<bd){ bd=en[i].dist; best=i; }
           }
-          if(best>=0){ en[best].d=true; this.score+=50; }
+          if(best>=0){ en[best].hp--; if(en[best].hp<=0){ en[best].d=true; this.score+=en[best].arm?90:50; } else this.score+=10; }
         }
         for(var e=0;e<en.length;e++){
           if(en[e].d)continue;
@@ -764,7 +963,10 @@
           if(en[e].dist<=70){ this.over=true; return; }
         }
         en=en.filter(function(o){return !o.d;});
-        if(!en.length){ wave++; this.score+=150; spawn(); }
+        if(!en.length){
+          if(wave<WPL){ wave++; this.score+=150; banner="WAVE "+wave; bannerT=1.1; spawn(); }
+          else { level++; wave=1; this.score+=400; banner="LEVEL "+level; bannerT=1.8; spawn(); }
+        }
       },
       draw:function(){
         // sky / floor
@@ -784,8 +986,10 @@
           var sx=W/2+(off/HFOV)*(W/2);
           var sc=Math.max(0.2,520/en2.dist);
           var ew=42*sc, eh=46*sc, ey=HZ-eh*0.3;
-          rect(sx-ew/2,ey,ew,eh,"#ff3ea5");
-          rect(sx-ew*0.3,ey-eh*0.22,ew*0.6,eh*0.26,"#ff8a8a");
+          var body=en2.arm?"#9b6bff":"#ff3ea5", head=en2.arm?"#c7a8ff":"#ff8a8a";
+          rect(sx-ew/2,ey,ew,eh,body);
+          rect(sx-ew*0.3,ey-eh*0.22,ew*0.6,eh*0.26,head);
+          if(en2.arm){ ctx.strokeStyle="#27e8ff";ctx.lineWidth=Math.max(1,2*sc);ctx.strokeRect(sx-ew/2,ey,ew,eh); }
           rect(sx-ew*0.18,ey+eh*0.3,ew*0.12,eh*0.16,"#2a0010");
           rect(sx+ew*0.06,ey+eh*0.3,ew*0.12,eh*0.16,"#2a0010");
         }
@@ -807,9 +1011,10 @@
           var o2=Math.atan2(Math.sin(en[c].ang-aim),Math.cos(en[c].ang-aim));
           rect(W/2+Math.max(-1,Math.min(1,o2/Math.PI))*150,H-10,3,6,"#ff3ea5");
         }
-        px_txt("WAVE "+wave,8,18,8,"#9b8fc7","left");
+        px_txt("LV "+level+"  W"+wave+"/"+WPL,8,18,8,"#9b8fc7","left");
         px_txt("FOES "+en.length,W-8,18,8,"#ff3ea5","right");
         px_txt(""+this.score,W/2,18,10,"#ffd23e");
+        if(bannerT>0) px_txt(banner,W/2,HZ-40,14,"#27e8ff");
       }};
   });
 

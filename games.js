@@ -14,9 +14,9 @@
   };
   var ACTIVE = false;
   var KMAP = {
-    ArrowLeft:"left", KeyA:"left", ArrowRight:"right", KeyD:"right",
+    ArrowLeft:"left", ArrowRight:"right", KeyD:"right",
     ArrowUp:"up", KeyW:"up", ArrowDown:"down", KeyS:"down",
-    Space:"action", Enter:"action", KeyZ:"action", KeyJ:"action"
+    Space:"action", Enter:"action", KeyZ:"action", KeyJ:"action", KeyA:"action"
   };
   var DIRCH = { left:"L", right:"R", up:"U", down:"D" };
 
@@ -90,6 +90,10 @@
     ctx.restore();
   }
   function rect(x, y, w, h, col) { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); }
+  function poly(x1,y1,x2,y2,x3,y3,x4,y4){
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+    ctx.lineTo(x3,y3);ctx.lineTo(x4,y4);ctx.closePath();ctx.fill();
+  }
 
   /* ── Registry ────────────────────────────────────────────── */
   var REGISTRY = {}, HOWTO = {};
@@ -107,6 +111,154 @@
   };
   var POOL = ["snake","muncher","runner","rocket","dungeon","quest","dodger",
               "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend"];
+
+  /* ── Shared pseudo-3D kart racer (Mario-Kart-style) ──────── */
+  function makeRacer(cfg){
+    var SEGLEN=200, NSEG=560, ROADW=1400, CAMH=1000;
+    var CAMD=1/Math.tan((100/2)*Math.PI/180), DRAW=180;
+    var trackLen=NSEG*SEGLEN;
+    // build a looping track with a few curves
+    var segs=[];
+    for(var i=0;i<NSEG;i++){
+      var cv=0;
+      if(i> 60&&i<120) cv= 2.6;
+      if(i>180&&i<240) cv=-3.2;
+      if(i>300&&i<340) cv= 4.0;
+      if(i>410&&i<470) cv=-2.4;
+      segs.push({ index:i, curve:cv,
+        p1:{world:{z:i*SEGLEN},camera:{},screen:{}},
+        p2:{world:{z:(i+1)*SEGLEN},camera:{},screen:{}} });
+    }
+    function project(p,camX,camY,camZ){
+      p.camera.x=(p.world.x||0)-camX;
+      p.camera.y=(p.world.y||0)-camY;
+      p.camera.z=(p.world.z||0)-camZ;
+      p.screen.scale=CAMD/p.camera.z;
+      p.screen.x=Math.round(W/2 + p.screen.scale*p.camera.x*W/2);
+      p.screen.y=Math.round(H/2 - p.screen.scale*p.camera.y*H/2);
+      p.screen.w=Math.round(p.screen.scale*ROADW*W/2);
+    }
+    var pos=0, playerX=0, speed=0, maxSpd=cfg.maxSpd||12000, lap=1, laps=cfg.laps||3;
+    var boostT=0, finished=false, raceT=0;
+    var rivals=[];
+    for(var r=0;r<(cfg.rivals||4);r++)
+      rivals.push({ z:(r+1)*900, off:rnd(-0.55,0.55),
+        spd:(cfg.maxSpd||12000)*(0.62+r*0.045), tot:0 });
+    var pads=[];
+    if(cfg.boost) for(var b=0;b<10;b++) pads.push({z:rnd(0,trackLen),off:rnd(-0.5,0.5)});
+    function segAt(z){ return segs[Math.floor(z/SEGLEN)%NSEG]; }
+
+    return { score:0, over:false,
+      update:function(dt){
+        if(finished){ this.over=true; return; }
+        raceT+=dt;
+        // accelerate automatically, steer L/R, A = boost
+        speed += (maxSpd*0.55 - speed*0.45)*dt;
+        if((IN.edge.action||IN.held.action)&&boostT<=0) boostT=1.0;
+        if(boostT>0){ boostT-=dt; speed=Math.min(maxSpd*1.55,speed+maxSpd*1.4*dt); }
+        var steer=(speed/maxSpd)*2.6;
+        if(IN.held.left)  playerX-=steer*dt;
+        if(IN.held.right) playerX+=steer*dt;
+        playerX-=(segAt(pos).curve)*(speed/maxSpd)*dt*0.45;
+        if(Math.abs(playerX)>1.05){ speed*=Math.pow(0.4,dt); }   // off-road drag
+        playerX=Math.max(-2,Math.min(2,playerX));
+        // rival contact
+        for(var ri2=0;ri2<rivals.length;ri2++){
+          var rv=rivals[ri2];
+          var dz=((rv.z-pos)%trackLen+trackLen)%trackLen;
+          if(dz<160 && Math.abs(rv.off-playerX)<0.42){ speed*=Math.pow(0.25,dt); }
+          rv.spd += ((cfg.maxSpd||12000)*0.6 - rv.spd*0.5)*dt*0;
+          rv.z+=rv.spd*dt; rv.tot+=rv.spd*dt;
+          rv.off+=(Math.sin((rv.z+ri2*400)/1400)*0.5-rv.off)*0.6*dt;
+        }
+        if(cfg.boost) for(var p=0;p<pads.length;p++){
+          var pd=pads[p], pdz=((pd.z-pos)%trackLen+trackLen)%trackLen;
+          if(pdz<150 && Math.abs(pd.off-playerX)<0.34 && !pd._h){ pd._h=raceT; boostT=Math.max(boostT,0.9); this.score+=25; }
+          if(pd._h && raceT-pd._h>3) pd._h=0;
+        }
+        pos+=speed*dt;
+        if(pos>=trackLen){ pos-=trackLen; lap++; this.score+=200;
+          if(lap>laps){ finished=true;
+            // finishing place bonus
+            var ahead=0,me=(lap-1)*trackLen+pos;
+            for(var q=0;q<rivals.length;q++) if(rivals[q].tot>me) ahead++;
+            this.score += [600,400,250,150,80][Math.min(ahead,4)];
+          }
+        }
+      },
+      draw:function(){
+        var g=ctx.createLinearGradient(0,0,0,H/2);
+        g.addColorStop(0,cfg.sky1);g.addColorStop(1,cfg.sky2);
+        ctx.fillStyle=g;ctx.fillRect(0,0,W,H/2);
+        rect(0,H/2,W,H/2,cfg.grass);
+        var base=Math.floor(pos/SEGLEN)%NSEG;
+        var basePct=(pos%SEGLEN)/SEGLEN;
+        var x=0, dx=-(segs[base].curve*basePct), maxy=H;
+        var anchor=[];
+        for(var n=0;n<DRAW;n++){
+          var seg=segs[(base+n)%NSEG];
+          var looped=seg.index<base;
+          var camZ=pos-(looped?trackLen:0);
+          project(seg.p1,(playerX*ROADW)-x,     CAMH,camZ);
+          project(seg.p2,(playerX*ROADW)-x-dx, CAMH,camZ);
+          x+=dx; dx+=seg.curve;
+          anchor[seg.index]={x:seg.p1.screen.x,y:seg.p1.screen.y,w:seg.p1.screen.w,sc:seg.p1.screen.scale};
+          if(seg.p1.camera.z<=CAMD || seg.p2.screen.y>=maxy) continue;
+          var y1=seg.p1.screen.y,y2=seg.p2.screen.y;
+          var w1=seg.p1.screen.w,w2=seg.p2.screen.w;
+          var x1=seg.p1.screen.x,x2=seg.p2.screen.x;
+          var dark=((seg.index/3)|0)%2===0;
+          // grass band
+          ctx.fillStyle=dark?cfg.grass:cfg.grass2;
+          ctx.fillRect(0,y2,W,y1-y2);
+          // rumble + road
+          ctx.fillStyle=dark?"#ffffff":"#ff3ea5";
+          poly(x1-w1*1.18,y1,x1+w1*1.18,y1,x2+w2*1.18,y2,x2-w2*1.18,y2);
+          ctx.fillStyle=dark?cfg.road:cfg.road2;
+          poly(x1-w1,y1,x1+w1,y1,x2+w2,y2,x2-w2,y2);
+          if(dark){ ctx.fillStyle="#ffffff55";
+            poly(x1-w1*0.04,y1,x1+w1*0.04,y1,x2+w2*0.04,y2,x2-w2*0.04,y2); }
+          maxy=y2;
+        }
+        // boost pads
+        if(cfg.boost) for(var p=0;p<pads.length;p++){
+          var pd=pads[p]; if(pd._h)continue;
+          var si=Math.floor(pd.z/SEGLEN)%NSEG, a=anchor[si];
+          if(!a||a.sc<=0)continue;
+          var pw=a.w*0.34;
+          rect(a.x+pd.off*a.w-pw/2, a.y-pw*0.4, pw, pw*0.5, "#46ff9c");
+        }
+        // rivals (far to near)
+        var rs=rivals.slice().sort(function(a,b){
+          return (((b.z-pos)%trackLen+trackLen)%trackLen)-(((a.z-pos)%trackLen+trackLen)%trackLen); });
+        for(var ri3=0;ri3<rs.length;ri3++){
+          var rv=rs[ri3], si2=Math.floor(rv.z/SEGLEN)%NSEG, a2=anchor[si2];
+          if(!a2||a2.sc<=0)continue;
+          var cw=a2.sc*2600, ch=cw*0.8;
+          if(cw<3)continue;
+          var rxp=a2.x+rv.off*a2.w, ryp=a2.y;
+          rect(rxp-cw/2,ryp-ch,cw,ch,cfg.rival);
+          rect(rxp-cw*0.34,ryp-ch*0.7,cw*0.68,ch*0.4,"#1a1a2a");
+        }
+        // player kart (fixed, bottom)
+        var pcx=W/2+ (IN.held.left?-6:IN.held.right?6:0), pcy=H-46;
+        rect(pcx-26,pcy-6,52,30,cfg.player);
+        rect(pcx-30,pcy+18,12,12,"#1a1a1a");
+        rect(pcx+18,pcy+18,12,12,"#1a1a1a");
+        rect(pcx-16,pcy-16,32,14,"#1a1a2a");
+        if(boostT>0){ ctx.fillStyle="#ffd23e";
+          ctx.beginPath();ctx.moveTo(pcx-10,pcy+24);ctx.lineTo(pcx+10,pcy+24);
+          ctx.lineTo(pcx,pcy+24+12+Math.random()*8);ctx.fill(); }
+        // HUD
+        px_txt("LAP "+Math.min(lap,laps)+"/"+laps,8,20,8,"#fff","left");
+        var place=1,me2=(lap-1)*trackLen+pos;
+        for(var q=0;q<rivals.length;q++) if(rivals[q].tot>me2) place++;
+        px_txt(place+(["TH","ST","ND","RD","TH"][place]||"TH"),W-8,20,9,"#ffd23e","right");
+        px_txt(Math.round(speed/55)+" KM/H",W/2,H-10,7,"#fff");
+        px_txt(""+this.score,W/2,20,11,"#ffd23e");
+        if(boostT>0) px_txt("BOOST!",W/2,40,9,"#46ff9c");
+      }};
+  }
 
   /* ════════════════════ GAMES ════════════════════ */
 
@@ -275,24 +427,41 @@
       }};
   });
 
-  /* 5. Pixel Heist (robber strategy: shoot guards, grab cash, clear levels +100) */
-  reg("heist","D-pad / arrows to move the robber. A / Space fires in the way you're facing. Shoot guards, grab all the cash, clear the level (+100). It gets tougher each level.",
+  /* 5. Pixel Heist (STEALTH: guards patrol routes, only react to sight or bodies) */
+  reg("heist","Stay out of the guards' yellow vision cones! Move with the D-pad/arrows, A / Space fires where you face. Drop guards quietly, but a guard who spots you OR finds a body goes RED on the radar and hunts you. Grab all the cash to clear the level (+100).",
   function(){
-    var R=22, px=W/2, py=H-50, fx=0, fy=-1, mv=110, level=1;
-    var bullets=[], guards=[], cash=[], fireCD=0;
+    var R=22, px=W/2, py=H-46, fx=0, fy=-1, mv=120, level=1;
+    var bullets=[], guards=[], bodies=[], cash=[], fireCD=0;
+    var CONE=Math.PI/3.2, SIGHT=118;     // half-angle & range of a guard's vision
     function placeAway(size){
       var x,y,tries=0;
-      do{ x=rnd(30,W-30-size); y=rnd(30,H-90); tries++; }
-      while(tries<20 && Math.hypot(x-px,y-py)<90);
+      do{ x=rnd(34,W-34-size); y=rnd(34,H-96); tries++; }
+      while(tries<24 && Math.hypot(x-px,y-py)<110);
       return {x:x,y:y};
     }
+    function makeRoute(){
+      var n=ri(2,4), pts=[];
+      for(var i=0;i<n;i++){ var p=placeAway(20); pts.push({x:p.x,y:p.y}); }
+      return pts;
+    }
     function buildLevel(){
-      bullets=[]; guards=[]; cash=[];
+      bullets=[]; guards=[]; bodies=[]; cash=[];
       var nG=2+level, nC=3+((level/2)|0);
-      for(var i=0;i<nG;i++){ var g=placeAway(20); guards.push({x:g.x,y:g.y,spd:46+level*5}); }
+      for(var i=0;i<nG;i++){
+        var rt=makeRoute();
+        guards.push({ x:rt[0].x, y:rt[0].y, route:rt, wp:1,
+          spd:42+level*4, alert:0, hd:0 });   // hd = heading angle
+      }
       for(var c=0;c<nC;c++){ var k=placeAway(18); cash.push({x:k.x,y:k.y}); }
     }
     buildLevel();
+    function seesPlayer(g){
+      var dx=px-g.x, dy=py-g.y, d=Math.hypot(dx,dy);
+      if(d>SIGHT) return false;
+      var ang=Math.atan2(dy,dx);
+      var diff=Math.abs(Math.atan2(Math.sin(ang-g.hd),Math.cos(ang-g.hd)));
+      return diff<CONE;
+    }
     return { score:0, over:false,
       update:function(dt){
         var mxx=0,myy=0;
@@ -304,20 +473,39 @@
         fireCD-=dt;
         if((IN.edge.action||IN.held.action)&&fireCD<=0){
           var n=Math.hypot(fx,fy)||1;
-          bullets.push({x:px,y:py,vx:fx/n*340,vy:fy/n*340,life:1.4});
-          fireCD=0.32;
+          bullets.push({x:px,y:py,vx:fx/n*360,vy:fy/n*360,life:1.4});
+          fireCD=0.34;
         }
         for(var b=0;b<bullets.length;b++){var bu=bullets[b];bu.x+=bu.vx*dt;bu.y+=bu.vy*dt;bu.life-=dt;}
         bullets=bullets.filter(function(o){return o.life>0&&o.x>-10&&o.x<W+10&&o.y>-10&&o.y<H+10;});
+
         for(var gi=0;gi<guards.length;gi++){
-          var gg=guards[gi], a=Math.atan2(py-gg.y,px-gg.x);
-          gg.x+=Math.cos(a)*gg.spd*dt; gg.y+=Math.sin(a)*gg.spd*dt;
+          var gg=guards[gi], tx,ty;
+          if(gg.alert>0){
+            // hunting: drive straight at the robber
+            tx=px; ty=py;
+          } else {
+            // patrolling its fixed waypoint loop
+            var wp=gg.route[gg.wp]; tx=wp.x; ty=wp.y;
+            if(Math.hypot(tx-gg.x,ty-gg.y)<6) gg.wp=(gg.wp+1)%gg.route.length;
+            // detection: line of sight cone
+            if(seesPlayer(gg)) gg.alert=1;
+            // detection: stumble onto a body
+            for(var bd=0;bd<bodies.length;bd++)
+              if(Math.hypot(bodies[bd].x-gg.x,bodies[bd].y-gg.y)<34){ gg.alert=1; break; }
+          }
+          var a=Math.atan2(ty-gg.y,tx-gg.x);
+          gg.hd=a;
+          var sp=gg.spd*(gg.alert>0?1.5:1);
+          gg.x+=Math.cos(a)*sp*dt; gg.y+=Math.sin(a)*sp*dt;
           if(Math.hypot(gg.x-px,gg.y-py)<R){ this.over=true; }
         }
+
         for(var bi=0;bi<bullets.length;bi++){
           for(var g2=0;g2<guards.length;g2++){
             if(!guards[g2].dead&&!bullets[bi].dead&&Math.hypot(bullets[bi].x-guards[g2].x,bullets[bi].y-guards[g2].y)<16){
               guards[g2].dead=true; bullets[bi].dead=true; this.score+=25;
+              bodies.push({x:guards[g2].x,y:guards[g2].y});
             }
           }
         }
@@ -326,20 +514,36 @@
         cash=cash.filter(function(k){
           if(Math.hypot(k.x-px,k.y-py)<R){ this.score+=15; return false; } return true;
         },this);
-        if(cash.length===0){ this.score+=100; level++; buildLevel(); px=W/2; py=H-50; }
+        if(cash.length===0){ this.score+=100; level++; buildLevel(); px=W/2; py=H-46; }
       },
       draw:function(){
         clear("#0a0613","#161024");
         ctx.strokeStyle="#3a2a6b";ctx.lineWidth=4;ctx.strokeRect(6,6,W-12,H-12);
+        // bodies
+        for(var bd=0;bd<bodies.length;bd++){
+          ctx.save();ctx.globalAlpha=.6;
+          rect(bodies[bd].x-11,bodies[bd].y-9,22,18,"#7a2540");
+          ctx.restore();
+          px_txt("✖",bodies[bd].x,bodies[bd].y+4,8,"#ff8a8a");
+        }
         // cash
         for(var c=0;c<cash.length;c++){
           rect(cash[c].x-9,cash[c].y-7,18,14,"#ffd23e");
           px_txt("$",cash[c].x,cash[c].y+4,9,"#5a4400");
         }
-        // guards
+        // guards + vision cones
         for(var g=0;g<guards.length;g++){
-          rect(guards[g].x-10,guards[g].y-10,20,20,"#ff3ea5");
-          rect(guards[g].x-6,guards[g].y-12,12,5,"#ff8a8a");
+          var gu=guards[g], alerted=gu.alert>0;
+          ctx.save();
+          ctx.fillStyle=alerted?"rgba(255,62,165,.16)":"rgba(255,210,62,.13)";
+          ctx.beginPath();ctx.moveTo(gu.x,gu.y);
+          ctx.arc(gu.x,gu.y,SIGHT,gu.hd-CONE,gu.hd+CONE);
+          ctx.closePath();ctx.fill();
+          ctx.restore();
+          var col=alerted?"#ff3ea5":"#c77dff";
+          rect(gu.x-10,gu.y-10,20,20,col);
+          rect(gu.x-6,gu.y-12,12,5,alerted?"#ff8a8a":"#e0b8ff");
+          if(alerted) px_txt("!",gu.x,gu.y-16,8,"#ff3ea5");
         }
         // bullets
         ctx.fillStyle="#27e8ff";
@@ -347,9 +551,21 @@
         // robber
         rect(px-11,py-11,22,22,"#46ff9c");
         rect(px-7,py-15,14,6,"#1a1a1a");                 // hat
-        // gun barrel showing facing
         var n=Math.hypot(fx,fy)||1;
-        rect(px-2+fx/n*14,py-2+fy/n*14,5,5,"#f3ecff");
+        rect(px-2+fx/n*14,py-2+fy/n*14,5,5,"#f3ecff");   // gun barrel
+        // radar / minimap (bottom-right)
+        var RW=104,RH=72,RX=W-RW-12,RY=H-RH-12,sX=RW/W,sY=RH/H;
+        ctx.save();ctx.globalAlpha=.85;
+        rect(RX,RY,RW,RH,"#05030f");
+        ctx.strokeStyle="#27e8ff";ctx.lineWidth=1;ctx.strokeRect(RX,RY,RW,RH);
+        ctx.restore();
+        px_txt("RADAR",RX+RW/2,RY-4,6,"#27e8ff");
+        for(var rc=0;rc<cash.length;rc++) rect(RX+cash[rc].x*sX-1,RY+cash[rc].y*sY-1,2,2,"#ffd23e");
+        for(var rg=0;rg<guards.length;rg++){
+          var blip=guards[rg].alert>0?"#ff3ea5":"#c77dff";
+          rect(RX+guards[rg].x*sX-2,RY+guards[rg].y*sY-2,4,4,blip);
+        }
+        rect(RX+px*sX-2,RY+py*sY-2,4,4,"#46ff9c");
         px_txt("LEVEL "+level,8,20,8,"#9b8fc7","left");
         px_txt("CASH "+cash.length,W-8,20,8,"#ffd23e","right");
         px_txt(""+this.score,W/2,20,10,"#46ff9c");
@@ -490,143 +706,189 @@
       }};
   });
 
-  /* 8. Turbo Circuit (discrete 4-lane traffic dodge) */
-  reg("dodger","Left/Right to switch lanes. Dodge oncoming traffic — speed climbs forever.",
+  /* 8. Turbo Circuit (pseudo-3D circuit sprint — 3 fast laps vs rivals) */
+  reg("dodger","Steer Left/Right, A / Space for a turbo burst. It's a 3-lap circuit race — take the racing line, pass the rivals, finish on the podium for a big bonus.",
   function(){
-    var LANES=[100,200,300,400],lane=1,plx=LANES[1],spd=200,cars=[],spawnT=0,time=0;
-    return { score:0, over:false,
-      update:function(dt){
-        if(IN.edge.left&&lane>0)lane--;
-        if(IN.edge.right&&lane<3)lane++;
-        plx+=(LANES[lane]-plx)*Math.min(1,dt*14);
-        spd+=dt*7; time+=dt; this.score=Math.floor(time*10);
-        spawnT-=dt;
-        if(spawnT<=0){cars.push({x:LANES[ri(0,3)],y:-60});spawnT=rnd(0.5,1)-Math.min(0.28,spd/2000);}
-        for(var i=0;i<cars.length;i++)cars[i].y+=spd*dt;
-        cars=cars.filter(function(c){return c.y<H+60;});
-        for(var j=0;j<cars.length;j++) if(Math.abs(cars[j].x-plx)<40&&Math.abs(cars[j].y-290)<52)this.over=true;
-      },
-      draw:function(){
-        clear("#07111a","#0a0613");
-        rect(70,0,360,H,"#141a2e");
-        ctx.strokeStyle="#ffd23e44";ctx.lineWidth=3;ctx.setLineDash([22,16]);
-        [150,240,330].forEach(function(lx){ctx.beginPath();ctx.moveTo(lx,0);ctx.lineTo(lx,H);ctx.stroke();});
-        ctx.setLineDash([]);
-        for(var j=0;j<cars.length;j++){rect(cars[j].x-20,cars[j].y-32,40,64,"#ff3ea5");}
-        rect(plx-20,262,40,64,"#27e8ff");
-        px_txt(""+this.score,W/2,22,12,"#9b8fc7");
-      }};
+    return makeRacer({
+      laps:3, rivals:5, maxSpd:13000, boost:false,
+      sky1:"#0a1830", sky2:"#1a2e52", grass:"#13241a", grass2:"#0f1c14",
+      road:"#2a2150", road2:"#241b46", rival:"#ff3ea5", player:"#27e8ff"
+    });
   });
 
-  /* 9. Kart Kombat (free movement racer + boost pads) */
-  reg("kart","Move freely Left/Right. Smash green boost pads for points & speed, dodge the rival karts.",
+  /* 9. Kart Kombat (Mario-Kart-style: 3 laps, rivals + green boost pads) */
+  reg("kart","Mario-Kart-style race! Steer Left/Right, hit A / Space for a turbo. Hit the green boost pads on the track for speed + points. 3 laps — beat the rival karts to the line.",
   function(){
-    var kx=W/2,spd=190,items=[],spawnT=0,time=0,boost=0;
-    return { score:0, over:false,
-      update:function(dt){
-        if(IN.held.left)kx-=300*dt;
-        if(IN.held.right)kx+=300*dt;
-        kx=Math.max(80,Math.min(W-80,kx));
-        if(boost>0)boost-=dt;
-        var sp=spd+(boost>0?160:0);
-        spd+=dt*4; time+=dt; this.score=Math.floor(time*8);
-        spawnT-=dt;
-        if(spawnT<=0){
-          var isBoost=Math.random()<0.3;
-          items.push({x:rnd(90,W-90),y:-40,b:isBoost});
-          spawnT=rnd(0.45,0.9);
-        }
-        for(var i=0;i<items.length;i++)items[i].y+=sp*dt;
-        items=items.filter(function(o){return o.y<H+50;});
-        for(var j=items.length-1;j>=0;j--){
-          var it=items[j];
-          if(Math.abs(it.x-kx)<36&&Math.abs(it.y-300)<46){
-            if(it.b){ this.score+=50; boost=1.4; items.splice(j,1); }
-            else { this.over=true; }
-          }
-        }
-      },
-      draw:function(){
-        clear("#0a1a0e","#06120a");
-        rect(64,0,W-128,H,"#13241a");
-        ctx.strokeStyle="#46ff9c33";ctx.lineWidth=3;ctx.setLineDash([20,18]);
-        ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
-        for(var i=0;i<items.length;i++){
-          if(items[i].b){rect(items[i].x-18,items[i].y-10,36,20,"#46ff9c");}
-          else{rect(items[i].x-18,items[i].y-30,36,60,"#ff3ea5");}
-        }
-        rect(kx-18,270,36,60,boost>0?"#ffd23e":"#27e8ff");
-        px_txt(""+this.score,W/2,22,12,"#9b8fc7");
-        if(boost>0)px_txt("BOOST!",W/2,H-12,10,"#ffd23e");
-      }};
+    return makeRacer({
+      laps:3, rivals:5, maxSpd:12000, boost:true,
+      sky1:"#1a0e30", sky2:"#3a1a52", grass:"#0e2418", grass2:"#0a1c12",
+      road:"#3a2a6b", road2:"#332459", rival:"#ffd23e", player:"#46ff9c"
+    });
   });
 
-  /* 10. FPS Arena (space-invaders wave survival) */
-  reg("shooter","Left/Right to move, A / Space to fire. Clear each descending wave to advance.",
+  /* 10. FPS Arena (TRUE first-person: turn to aim, blast the advancing wave) */
+  reg("shooter","First-person arena. Left/Right turns your view, A / Space fires at the crosshair. Gun down the whole wave before they reach you — clearing a wave is +150.",
   function(){
-    var sx=W/2,bul=[],en=[],edir=1,wave=1,cd=0;
-    function spawn(){en=[];var rows=Math.min(3,wave),cols=6;
-      for(var r=0;r<rows;r++)for(var c=0;c<cols;c++)en.push({x:80+c*56,y:40+r*40});}
+    var HFOV=Math.PI/3;                 // half field of view
+    var aim=0, en=[], wave=1, cd=0, flash=0;
+    function spawn(){
+      en=[];
+      var n=Math.min(3+wave,9);
+      for(var i=0;i<n;i++)
+        en.push({ ang:rnd(-Math.PI,Math.PI), dist:rnd(620,900),
+                  spd:38+wave*7, d:false });
+    }
     spawn();
+    function angDiff(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b));}
     return { score:0, over:false,
       update:function(dt){
-        if(IN.held.left)sx-=300*dt; if(IN.held.right)sx+=300*dt;
-        sx=Math.max(16,Math.min(W-16,sx));
-        cd-=dt;
-        if((IN.edge.action||IN.held.action)&&cd<=0){bul.push({x:sx,y:310});cd=0.25;}
-        for(var i=0;i<bul.length;i++)bul[i].y-=540*dt;
-        bul=bul.filter(function(b){return b.y>-10;});
-        var sp=24+wave*7,hit=false;
-        for(var e=0;e<en.length;e++){en[e].x+=edir*sp*dt;if(en[e].x<14||en[e].x>W-14)hit=true;}
-        if(hit){edir*=-1;for(var k=0;k<en.length;k++)en[k].y+=16;}
-        for(var b=0;b<bul.length;b++)for(var e2=0;e2<en.length;e2++)
-          if(!en[e2].d&&!bul[b].d&&Math.abs(bul[b].x-en[e2].x)<18&&Math.abs(bul[b].y-en[e2].y)<16){en[e2].d=bul[b].d=true;this.score+=50;}
-        bul=bul.filter(function(b){return !b.d;}); en=en.filter(function(e){return !e.d;});
-        for(var e3=0;e3<en.length;e3++)if(en[e3].y>300){this.over=true;return;}
-        if(!en.length){wave++;this.score+=150;spawn();}
+        if(IN.held.left)  aim-=2.2*dt;
+        if(IN.held.right) aim+=2.2*dt;
+        if(aim> Math.PI)aim-=Math.PI*2;
+        if(aim<-Math.PI)aim+=Math.PI*2;
+        cd-=dt; flash-=dt;
+        if((IN.edge.action||IN.held.action)&&cd<=0){
+          cd=0.3; flash=0.06;
+          // hit the closest enemy near the crosshair centre
+          var best=-1,bd=1e9;
+          for(var i=0;i<en.length;i++){
+            if(en[i].d)continue;
+            var off=Math.abs(angDiff(en[i].ang,aim));
+            if(off<0.14 && en[i].dist<bd){ bd=en[i].dist; best=i; }
+          }
+          if(best>=0){ en[best].d=true; this.score+=50; }
+        }
+        for(var e=0;e<en.length;e++){
+          if(en[e].d)continue;
+          en[e].dist-=en[e].spd*dt;
+          if(en[e].dist<=70){ this.over=true; return; }
+        }
+        en=en.filter(function(o){return !o.d;});
+        if(!en.length){ wave++; this.score+=150; spawn(); }
       },
       draw:function(){
-        clear("#02030f","#0a0613");
-        ctx.fillStyle="#27e8ff";ctx.beginPath();ctx.moveTo(sx,308);ctx.lineTo(sx-18,340);ctx.lineTo(sx+18,340);ctx.fill();
-        for(var b=0;b<bul.length;b++)rect(bul[b].x-2,bul[b].y-10,4,14,"#ffd23e");
-        for(var e=0;e<en.length;e++)rect(en[e].x-14,en[e].y-11,28,22,"#ff3ea5");
+        // sky / floor
+        var g=ctx.createLinearGradient(0,0,0,H);
+        g.addColorStop(0,"#070b1e");g.addColorStop(.5,"#11163a");g.addColorStop(.5,"#1a0f24");g.addColorStop(1,"#0a0613");
+        ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+        var HZ=H*0.5;
+        // perspective floor grid
+        ctx.strokeStyle="rgba(39,232,255,.16)";ctx.lineWidth=1;
+        for(var d=1;d<=8;d++){var yy=HZ+(H-HZ)*(d/8)*(d/8);ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W,yy);ctx.stroke();}
+        for(var vx=-4;vx<=4;vx++){ctx.beginPath();ctx.moveTo(W/2+vx*22,HZ);ctx.lineTo(W/2+vx*150,H);ctx.stroke();}
+        // enemies as depth-scaled sprites
+        var order=en.slice().sort(function(a,b){return b.dist-a.dist;});
+        for(var i=0;i<order.length;i++){
+          var en2=order[i],off=Math.atan2(Math.sin(en2.ang-aim),Math.cos(en2.ang-aim));
+          if(Math.abs(off)>HFOV)continue;
+          var sx=W/2+(off/HFOV)*(W/2);
+          var sc=Math.max(0.2,520/en2.dist);
+          var ew=42*sc, eh=46*sc, ey=HZ-eh*0.3;
+          rect(sx-ew/2,ey,ew,eh,"#ff3ea5");
+          rect(sx-ew*0.3,ey-eh*0.22,ew*0.6,eh*0.26,"#ff8a8a");
+          rect(sx-ew*0.18,ey+eh*0.3,ew*0.12,eh*0.16,"#2a0010");
+          rect(sx+ew*0.06,ey+eh*0.3,ew*0.12,eh*0.16,"#2a0010");
+        }
+        // muzzle flash
+        if(flash>0){ ctx.save();ctx.globalAlpha=.5;rect(0,0,W,H,"#ffd23e");ctx.restore(); }
+        // weapon
+        ctx.fillStyle="#2a2150";
+        ctx.beginPath();ctx.moveTo(W/2-46,H);ctx.lineTo(W/2-14,H-58);ctx.lineTo(W/2+14,H-58);ctx.lineTo(W/2+46,H);ctx.closePath();ctx.fill();
+        rect(W/2-6,H-90,12,34,"#3a2a6b");
+        // crosshair
+        ctx.strokeStyle="#27e8ff";ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(W/2,HZ,11,0,7);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(W/2-18,HZ);ctx.lineTo(W/2-6,HZ);
+        ctx.moveTo(W/2+6,HZ);ctx.lineTo(W/2+18,HZ);
+        ctx.moveTo(W/2,HZ-18);ctx.lineTo(W/2,HZ-6);
+        ctx.moveTo(W/2,HZ+6);ctx.lineTo(W/2,HZ+18);ctx.stroke();
+        // compass of remaining foes
+        for(var c=0;c<en.length;c++){
+          var o2=Math.atan2(Math.sin(en[c].ang-aim),Math.cos(en[c].ang-aim));
+          rect(W/2+Math.max(-1,Math.min(1,o2/Math.PI))*150,H-10,3,6,"#ff3ea5");
+        }
         px_txt("WAVE "+wave,8,18,8,"#9b8fc7","left");
+        px_txt("FOES "+en.length,W-8,18,8,"#ff3ea5","right");
         px_txt(""+this.score,W/2,18,10,"#ffd23e");
       }};
   });
 
-  /* 11. Galaxy Blaster (free-roam vertical scrolling shooter) */
-  reg("galaxy","Move any direction, A / Space to fire upward. Gun down the swooping invaders endlessly.",
+  /* 11. Galaxy Blaster (first-person cockpit: dogfight ships rushing out of deep space) */
+  reg("galaxy","First-person cockpit. Move the crosshair with the D-pad / arrows, A / Space fires. Blast the enemy ships warping toward you out of deep space — don't let one slam into your canopy!",
   function(){
-    var sx=W/2,sy=H-50,bul=[],en=[],spawnT=0,cd=0,time=0;
+    var aimX=0, aimY=0, en=[], stars=[], bul=[], spawnT=0, cd=0, time=0, flash=0;
+    for(var s=0;s<70;s++) stars.push({a:rnd(-1,1),b:rnd(-1,1),z:rnd(40,1000)});
     return { score:0, over:false,
       update:function(dt){
         time+=dt;
-        if(IN.held.left)sx-=260*dt; if(IN.held.right)sx+=260*dt;
-        if(IN.held.up)sy-=220*dt; if(IN.held.down)sy+=220*dt;
-        sx=Math.max(16,Math.min(W-16,sx)); sy=Math.max(120,Math.min(H-20,sy));
-        cd-=dt;
-        if((IN.edge.action||IN.held.action)&&cd<=0){bul.push({x:sx,y:sy-16});cd=0.22;}
-        for(var i=0;i<bul.length;i++)bul[i].y-=520*dt;
-        bul=bul.filter(function(b){return b.y>-10;});
+        if(IN.held.left)  aimX-=1.8*dt;
+        if(IN.held.right) aimX+=1.8*dt;
+        if(IN.held.up)    aimY-=1.6*dt;
+        if(IN.held.down)  aimY+=1.6*dt;
+        aimX=Math.max(-1,Math.min(1,aimX));
+        aimY=Math.max(-1,Math.min(1,aimY));
+        cd-=dt; flash-=dt;
+        if((IN.edge.action||IN.held.action)&&cd<=0){
+          cd=0.22; flash=0.05;
+          var best=-1,bd=1e9;
+          for(var i=0;i<en.length;i++){
+            if(en[i].d)continue;
+            var off=Math.hypot(en[i].a-aimX,en[i].b-aimY);
+            if(off<0.22 && en[i].z<bd){ bd=en[i].z; best=i; }
+          }
+          if(best>=0){ en[best].d=true; this.score+=40; }
+        }
+        for(var st=0;st<stars.length;st++){ stars[st].z-=320*dt; if(stars[st].z<20){stars[st].z=1000;stars[st].a=rnd(-1,1);stars[st].b=rnd(-1,1);} }
         spawnT-=dt;
-        if(spawnT<=0){en.push({x:rnd(20,W-20),y:-20,vy:60+time*3,ph:rnd(0,6)});
-          spawnT=Math.max(0.35,1.1-time*0.02);}
-        for(var e=0;e<en.length;e++){en[e].y+=en[e].vy*dt;en[e].x+=Math.sin((en[e].y+en[e].ph*40)/40)*1.3;}
-        for(var b=0;b<bul.length;b++)for(var e2=0;e2<en.length;e2++)
-          if(!en[e2].d&&!bul[b].d&&Math.hypot(bul[b].x-en[e2].x,bul[b].y-en[e2].y)<16){en[e2].d=bul[b].d=true;this.score+=40;}
-        bul=bul.filter(function(b){return !b.d;});
-        en=en.filter(function(e){return !e.d&&e.y<H+30;});
-        for(var e3=0;e3<en.length;e3++)
-          if(Math.hypot(en[e3].x-sx,en[e3].y-sy)<18){this.over=true;}
+        if(spawnT<=0){
+          en.push({ a:rnd(-.9,.9), b:rnd(-.7,.7), z:1000,
+                    spd:150+time*9, sw:rnd(-.25,.25), d:false });
+          spawnT=Math.max(0.45,1.3-time*0.022);
+        }
+        for(var e=0;e<en.length;e++){
+          if(en[e].d)continue;
+          en[e].z-=en[e].spd*dt;
+          en[e].a+=Math.sin(time*2+e)*en[e].sw*dt;
+          if(en[e].z<=26){ this.over=true; return; }
+        }
+        en=en.filter(function(o){return !o.d;});
       },
       draw:function(){
-        clear("#01020c","#0a0613");
-        for(var i=0;i<40;i++){var px2=(i*97)%W,py2=(i*53+(time*120)%H)%H;rect(px2,py2,2,2,"#ffffff22");}
-        ctx.fillStyle="#27e8ff";ctx.beginPath();ctx.moveTo(sx,sy-16);ctx.lineTo(sx-14,sy+14);ctx.lineTo(sx+14,sy+14);ctx.fill();
-        for(var b=0;b<bul.length;b++)rect(bul[b].x-2,bul[b].y-8,4,12,"#46ff9c");
-        for(var e=0;e<en.length;e++){rect(en[e].x-12,en[e].y-10,24,20,"#ff3ea5");rect(en[e].x-6,en[e].y-15,12,6,"#ff8a8a");}
-        px_txt(""+this.score,W/2,20,12,"#ffd23e");
+        clear("#01020c","#06030f");
+        // warp starfield
+        for(var st=0;st<stars.length;st++){
+          var s=stars[st], k=420/s.z, sx=W/2+s.a*k*W*0.5, sy=H/2+s.b*k*H*0.5, r=Math.max(.5,2.4-s.z/500);
+          rect(sx,sy,r,r,"#cfe6ff");
+        }
+        // enemy ships, far first
+        var order=en.slice().sort(function(a,b){return b.z-a.z;});
+        for(var i=0;i<order.length;i++){
+          var e2=order[i], k2=420/e2.z;
+          var sx2=W/2+e2.a*k2*W*0.5, sy2=H/2+e2.b*k2*H*0.5;
+          var sc=Math.max(4,1100/e2.z);
+          ctx.fillStyle="#ff3ea5";
+          ctx.beginPath();
+          ctx.moveTo(sx2,sy2-sc);ctx.lineTo(sx2-sc*1.3,sy2+sc*0.8);ctx.lineTo(sx2+sc*1.3,sy2+sc*0.8);
+          ctx.closePath();ctx.fill();
+          rect(sx2-sc*0.35,sy2-sc*0.2,sc*0.7,sc*0.5,"#27e8ff");
+        }
+        if(flash>0){ ctx.save();ctx.globalAlpha=.4;rect(0,0,W,H,"#46ff9c");ctx.restore(); }
+        // cockpit frame
+        ctx.fillStyle="#140a26";
+        ctx.beginPath();ctx.moveTo(0,H);ctx.lineTo(0,H-70);ctx.lineTo(70,H);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo(W,H);ctx.lineTo(W,H-70);ctx.lineTo(W-70,H);ctx.closePath();ctx.fill();
+        rect(0,H-14,W,14,"#1c1030");
+        // crosshair (free-aimed)
+        var cxp=W/2+aimX*W*0.42, cyp=H/2+aimY*H*0.40;
+        ctx.strokeStyle=flash>0?"#46ff9c":"#27e8ff";ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(cxp,cyp,12,0,7);ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cxp-20,cyp);ctx.lineTo(cxp-7,cyp);
+        ctx.moveTo(cxp+7,cyp);ctx.lineTo(cxp+20,cyp);
+        ctx.moveTo(cxp,cyp-20);ctx.lineTo(cxp,cyp-7);
+        ctx.moveTo(cxp,cyp+7);ctx.lineTo(cxp,cyp+20);ctx.stroke();
+        px_txt("SHIPS "+en.length,W-8,18,8,"#ff3ea5","right");
+        px_txt(""+this.score,W/2,18,12,"#ffd23e");
       }};
   });
 

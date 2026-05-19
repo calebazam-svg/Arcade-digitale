@@ -12,9 +12,13 @@ Arcade originals. Nostalgic arcade energy meets a sleek, modern interface.
 - **Playable games** — every title launches a real, playable canvas game
   in an arcade modal with keyboard **and** on-screen D-pad/action controls,
   live score, and per-game high scores (saved locally). Engines: Neon Snake,
-  Maze Muncher, endless runner, traffic dodger, wave shooter, Asteroids,
-  Bubble Pop, Pixel Heist (timing), Block Cascade (stacker), Spend 100
-  Million, and a Mystery Machine that loads a random game.
+  Maze Muncher, Pixel Jumper, Retro Rush (vertical climber), Quest Pixels
+  (platformer), Dungeon Dash, two pseudo-3D Mario-Kart-style racers (Turbo
+  Circuit & Kart Kombat with laps, rivals & boosts), two first-person
+  shooters (FPS Arena & Galaxy Blaster), Asteroids, Bubble Pop, a stealth
+  Pixel Heist (guard patrol routes, vision cones, body detection & radar),
+  Block Cascade (stacker), Spend 100 Million, and a Mystery Machine that
+  loads a random game. Keyboard: WASD/arrows to move, **A** or Space to act.
 - **Game library** — 16 games with thumbnails, ratings, play counts and
   badges (NEW / HOT / EXCLUSIVE), filterable by category.
 - **Categories** — Trending, Retro Legends, Multiplayer, New Releases,

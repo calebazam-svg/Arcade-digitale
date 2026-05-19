@@ -1,40 +1,43 @@
-# Digital Arcade — "Play the Future."
+# Digital Arcade — "Classic Games. New Adventures."
 
-A futuristic, single-page web experience for **Digital Arcade**, a next-gen
-entertainment hub blending gaming, AI and immersive technology.
+An online gaming **platform** for iconic retro games and exclusive Digital
+Arcade originals. Nostalgic arcade energy meets a sleek, modern interface.
 
-## What's inside
+## Features
 
-- **Neon-lit exterior** — animated mega LED screen cycling live game ads,
-  holographic "Play the Future" sign, glowing LED strips, and a crowd walking
-  into the entrance.
-- **The floor** — 10 signature zones: VR arenas, esports stages, retro arcade
-  row, AI game stations, racing simulators, motion games, hi-tech claw
-  machines, interactive walls, the digital reward hub, and a mixed-reality
-  lounge.
-- **Esports arena** — a live-updating scoreboard on a massive LED wall.
-- **Prize center** — redeem tickets for electronics, collectibles, and
-  exclusive gaming gear.
-- **Digital reward system** — four membership tiers with XP-based perks.
-- **Ambience** — canvas particle field, glitch branding, scroll-reveal
-  animations, count-up stats, and a scrolling LED ticker.
+- **Neon arcade homepage** — glowing neon sign, pixel font, scanlines,
+  perspective grid floor, animated starfield, and a rotating arcade cabinet.
+- **Arcade sounds** — WebAudio synth blips on hover/click and a coin jingle
+  on reward claim (toggle in the top bar — no audio files needed).
+- **Game library** — 16 games with thumbnails, ratings, play counts and
+  badges (NEW / HOT / EXCLUSIVE), filterable by category.
+- **Categories** — Trending, Retro Legends, Multiplayer, New Releases,
+  Competitive, Exclusives (top nav + in-section filters stay in sync).
+- **Featured retro titles** — Maze Muncher, Pixel Jumper, Turbo Circuit,
+  Block Cascade, Quest Pixels, and more.
+- **Digital Arcade Originals** — FPS Arena, Spend 100 Million, Retro Rush,
+  Pixel Heist, Mystery Machine.
+- **Player Hub** — profile with selectable avatars, level/XP bar,
+  achievements (locked/unlocked), global leaderboard (with your rank
+  highlighted), and play-history-based recommendations.
+- **Daily rewards** — 7-day streak tracker with a claimable coin bonus.
+- Polished hover animations, realistic shadows, count-up stats, scroll
+  reveals; responsive and `prefers-reduced-motion` friendly.
 
-Built with vanilla HTML/CSS/JS — no build step, fully responsive, and
-respects `prefers-reduced-motion`.
+Vanilla HTML/CSS/JS — no build step, no dependencies.
 
 ## Run it
 
-Open `index.html` in any modern browser, or serve locally:
+Open `index.html`, or serve locally:
 
 ```bash
-python3 -m http.server 8000
-# then visit http://localhost:8000
+python3 -m http.server 8000   # then visit http://localhost:8000
 ```
 
 ## Files
 
-| File         | Purpose                                |
-|--------------|----------------------------------------|
-| `index.html` | Page structure & sections              |
-| `styles.css` | Neon/holographic theme & animations    |
-| `script.js`  | Content rendering & interactive FX     |
+| File         | Purpose                                   |
+|--------------|-------------------------------------------|
+| `index.html` | Page structure & sections                 |
+| `styles.css` | Retro-neon theme, layout & animations     |
+| `script.js`  | Game data, filtering, sound, dashboard FX |

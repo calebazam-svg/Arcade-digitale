@@ -3,155 +3,126 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Digital Arcade — Play the Future</title>
-<meta name="description" content="Digital Arcade — the next evolution of arcades. VR arenas, esports stages, AI game stations, racing simulators, retro machines and a high-tech prize center. Play the Future." />
+<title>Digital Arcade — Classic Games. New Adventures.</title>
+<meta name="description" content="Digital Arcade — an online gaming platform for iconic retro games and exclusive arcade originals. Classic Games. New Adventures." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<canvas id="fx"></canvas>
+<canvas id="stars"></canvas>
 
-<!-- Navigation -->
-<header class="nav" id="nav">
+<!-- Top bar -->
+<header class="topbar" id="topbar">
   <a href="#top" class="brand">
-    <span class="brand-mark">▮▮</span>
+    <span class="brand-pix">▚</span>
     <span class="brand-text">DIGITAL<em>ARCADE</em></span>
   </a>
-  <nav class="nav-links">
-    <a href="#zones">Zones</a>
-    <a href="#esports">Esports</a>
-    <a href="#prizes">Prize Center</a>
-    <a href="#rewards">Rewards</a>
-    <a href="#visit" class="nav-cta">Enter Now</a>
-  </nav>
+  <nav class="cat-nav" id="catNav"></nav>
+  <div class="top-actions">
+    <button class="snd" id="sndBtn" title="Toggle arcade sound" aria-label="Toggle sound">🔊</button>
+    <button class="profile-btn" id="profileBtn" aria-label="Open profile">
+      <span class="ava" id="avaMini">🕹️</span>
+    </button>
+  </div>
 </header>
 
-<!-- Hero / Exterior -->
+<!-- Hero -->
 <section id="top" class="hero">
-  <div class="city-glow"></div>
-  <div class="building">
-    <div class="megascreen">
-      <div class="ad-rail" id="adRail"></div>
-    </div>
-    <div class="holo-sign">
-      <span class="holo-line">PLAY</span>
-      <span class="holo-line">THE FUTURE</span>
-    </div>
-    <div class="facade">
-      <div class="led-strip"></div>
-      <div class="entrance">
-        <div class="crowd" id="crowd"></div>
-        <div class="door-glow"></div>
-      </div>
-      <div class="led-strip"></div>
-    </div>
-  </div>
-
-  <div class="hero-copy">
-    <p class="kicker">NEXT-GEN ENTERTAINMENT HUB · EST. 2026</p>
-    <h1 class="title">
-      <span class="glitch" data-text="DIGITAL">DIGITAL</span>
-      <span class="glitch accent" data-text="ARCADE">ARCADE</span>
-    </h1>
-    <p class="slogan">"Play the Future."</p>
-    <p class="sub">Gaming · Artificial Intelligence · Immersive Technology — fused into one electric playground.</p>
+  <div class="scanlines"></div>
+  <div class="grid-floor"></div>
+  <div class="hero-inner">
+    <p class="insert-coin">★ INSERT COIN · PLAYER 1 ★</p>
+    <h1 class="neon-sign">DIGITAL<br><span>ARCADE</span></h1>
+    <p class="slogan">CLASSIC GAMES. NEW ADVENTURES.</p>
+    <p class="hero-sub">Iconic retro legends and exclusive Digital Arcade originals — all in one nostalgic, neon-soaked playground.</p>
     <div class="hero-actions">
-      <a href="#zones" class="btn btn-primary">Explore the Floor</a>
-      <a href="#visit" class="btn btn-ghost">Plan Your Visit</a>
+      <a href="#library" class="btn btn-primary">▶ Play Now</a>
+      <a href="#exclusives" class="btn btn-ghost">Discover Exclusives</a>
     </div>
-    <div class="stat-row">
-      <div class="stat"><b data-count="42">0</b><span>Game Zones</span></div>
-      <div class="stat"><b data-count="120">0</b><span>VR Stations</span></div>
-      <div class="stat"><b data-count="8">0</b><span>Esports Arenas</span></div>
-      <div class="stat"><b data-count="24">0</b><span>Open Hours</span></div>
+    <div class="hero-stats">
+      <div><b data-count="150">0</b><span>GAMES</span></div>
+      <div><b data-count="92">0</b><span>K PLAYERS</span></div>
+      <div><b data-count="24">0</b><span>OPEN 24/7</span></div>
     </div>
   </div>
-  <div class="scroll-hint"><span></span>SCROLL TO ENTER</div>
-</section>
-
-<!-- LED Ticker -->
-<div class="ticker">
-  <div class="ticker-track" id="ticker"></div>
-</div>
-
-<!-- Zones -->
-<section id="zones" class="section">
-  <div class="section-head">
-    <p class="eyebrow">INSIDE THE HUB</p>
-    <h2>Step Onto the <span class="accent">Glowing Floor</span></h2>
-    <p class="lede">Ten signature zones engineered for adrenaline. Realistic lighting, colorful reflections, and an atmosphere that never stops pulsing.</p>
+  <div class="hero-cabinet" aria-hidden="true">
+    <div class="cab-screen"><div class="cab-game" id="cabGame"></div></div>
+    <div class="cab-controls"><span class="stick"></span><i></i><i></i><i></i></div>
   </div>
-  <div class="grid" id="zoneGrid"></div>
 </section>
 
-<!-- Esports -->
-<section id="esports" class="section esports">
-  <div class="arena">
-    <div class="arena-screen">
-      <div class="scoreboard">
-        <div class="team"><span class="dot a"></span>NEON VIPERS <b id="scoreA">14</b></div>
-        <div class="vs">LIVE · MATCH POINT</div>
-        <div class="team"><b id="scoreB">12</b> CYBER WOLVES <span class="dot b"></span></div>
+<!-- Daily reward strip -->
+<section class="reward-strip">
+  <div class="reward-info">
+    <span class="rw-ico">🎁</span>
+    <div>
+      <b>Daily Reward Ready!</b>
+      <small id="rwText">Claim today's coins &amp; keep your streak alive.</small>
+    </div>
+  </div>
+  <div class="streak" id="streakDots"></div>
+  <button class="btn btn-primary sm" id="claimBtn">Claim +250 🪙</button>
+</section>
+
+<!-- Library -->
+<section id="library" class="section">
+  <div class="sec-head">
+    <h2>Game <span class="hl">Library</span></h2>
+    <div class="filters" id="filters"></div>
+  </div>
+  <div class="game-grid" id="gameGrid"></div>
+</section>
+
+<!-- Exclusives -->
+<section id="exclusives" class="section exclusives">
+  <div class="sec-head">
+    <h2><span class="hl">Digital Arcade</span> Originals</h2>
+    <p class="sec-sub">Built in-house. Found nowhere else.</p>
+  </div>
+  <div class="excl-grid" id="exclGrid"></div>
+</section>
+
+<!-- Player dashboard -->
+<section id="dash" class="section">
+  <h2 class="dash-title">Player <span class="hl">Hub</span></h2>
+  <div class="dash">
+    <!-- Profile -->
+    <div class="panel profile-panel">
+      <div class="profile-top">
+        <div class="ava-big" id="avaBig">🕹️</div>
+        <div>
+          <h3 id="pName">PixelKnight_99</h3>
+          <p class="pTag">Level <b id="pLvl">27</b> · Retro Legend</p>
+        </div>
       </div>
-      <div class="wave"></div>
+      <div class="xp-bar"><span id="xpFill"></span></div>
+      <p class="xp-text"><b id="xpNow">3,840</b> / 5,000 XP to Level 28</p>
+      <div class="ava-pick" id="avaPick"></div>
     </div>
-    <div class="arena-copy">
-      <p class="eyebrow">CENTER STAGE</p>
-      <h2>Esports <span class="accent">Competition Arena</span></h2>
-      <p class="lede">A massive LED wall, tournament-grade stations, and seating that roars. Host leagues, finals, and watch parties under cinematic light.</p>
-      <ul class="feature-list">
-        <li>240Hz tournament rigs &amp; pro peripherals</li>
-        <li>12-meter wraparound LED screen</li>
-        <li>Live casting booth &amp; broadcast suite</li>
-        <li>Seasonal leagues with cash prize pools</li>
-      </ul>
-      <a href="#visit" class="btn btn-primary">Register a Team</a>
+    <!-- Achievements -->
+    <div class="panel">
+      <h3 class="panel-h">🏅 Achievements</h3>
+      <div class="ach-list" id="achList"></div>
+    </div>
+    <!-- Leaderboard -->
+    <div class="panel">
+      <h3 class="panel-h">👑 Global Leaderboard</h3>
+      <ol class="lb" id="lb"></ol>
     </div>
   </div>
-</section>
-
-<!-- Prize Center -->
-<section id="prizes" class="section">
-  <div class="section-head">
-    <p class="eyebrow">REDEEM YOUR TICKETS</p>
-    <h2>The <span class="accent">Prize Center</span></h2>
-    <p class="lede">Cash in digital tickets for real tech. From flagship gear to limited collectibles — the better you play, the bigger you win.</p>
-  </div>
-  <div class="prize-grid" id="prizeGrid"></div>
-</section>
-
-<!-- Rewards -->
-<section id="rewards" class="section rewards">
-  <div class="section-head">
-    <p class="eyebrow">DIGITAL REWARD SYSTEM</p>
-    <h2>Level Up Your <span class="accent">Membership</span></h2>
-    <p class="lede">Every play earns XP. Climb the tiers, unlock perks, and let the AI tune challenges to your skill.</p>
-  </div>
-  <div class="tier-row" id="tierRow"></div>
-</section>
-
-<!-- Visit / CTA -->
-<section id="visit" class="section visit">
-  <div class="visit-card">
-    <h2>Ready to <span class="accent">Play the Future?</span></h2>
-    <p>Doors open 24/7. Bring your crew, your reflexes, and your ticket dreams.</p>
-    <form class="signup" id="signup">
-      <input type="email" placeholder="your@email.com" required aria-label="Email" />
-      <button type="submit" class="btn btn-primary">Get a Free Day Pass</button>
-    </form>
-    <p class="form-note" id="formNote">No spam — just power-ups, tournaments, and prize drops.</p>
+  <!-- Recommendations -->
+  <div class="reco">
+    <h3 class="panel-h">🎯 Recommended For You <small>based on your play history</small></h3>
+    <div class="reco-row" id="recoRow"></div>
   </div>
 </section>
 
 <footer class="footer">
-  <div class="brand">
-    <span class="brand-mark">▮▮</span>
-    <span class="brand-text">DIGITAL<em>ARCADE</em></span>
-  </div>
-  <p class="slogan-sm">"Play the Future."</p>
-  <p class="copy">© 2026 Digital Arcade. A gaming paradise engineered like a tech startup.</p>
+  <div class="brand"><span class="brand-pix">▚</span><span class="brand-text">DIGITAL<em>ARCADE</em></span></div>
+  <p class="foot-slogan">CLASSIC GAMES. NEW ADVENTURES.</p>
+  <p class="foot-copy">© 2026 Digital Arcade · Press Start to relive the legends.</p>
 </footer>
 
 <script src="script.js"></script>

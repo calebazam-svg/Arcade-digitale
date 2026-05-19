@@ -138,7 +138,8 @@
     if (card) {
       const name = card.querySelector("h3,p")?.textContent.trim();
       beep(740, 0.06); setTimeout(() => beep(990, 0.1), 60);
-      toast("▶ Launching " + name + "…");
+      if (window.DAGames) window.DAGames.launchByName(name);
+      else toast("▶ Launching " + name + "…");
       return;
     }
     const cat = e.target.closest(".cat-nav button");
@@ -171,6 +172,34 @@
       $("#avaMini").textContent = av.dataset.a;
       beep(700, 0.05);
     }
+  });
+
+  /* ---- Navigation: every click takes you somewhere ---- */
+  function goTo(sel) {
+    const t = $(sel);
+    if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  $("#profileBtn").addEventListener("click", () => { beep(680, 0.05); goTo("#dash"); });
+  $("#avaMini").addEventListener("click", () => goTo("#dash"));
+
+  const playNow = document.querySelector('.hero-actions a[href="#library"]');
+
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    if (a === playNow) return;
+    a.addEventListener("click", (ev) => {
+      const id = a.getAttribute("href");
+      if (id.length > 1 && $(id)) { ev.preventDefault(); beep(600, 0.04); goTo(id); }
+    });
+  });
+
+  // Hero "Play Now" instantly drops you into a featured game
+  if (playNow) playNow.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    beep(740, 0.06); setTimeout(() => beep(990, 0.1), 60);
+    const featured = games.filter(g => g.c.includes("Trending"));
+    const pick = featured[Math.floor(Math.random() * featured.length)] || games[0];
+    if (window.DAGames) window.DAGames.launchByName(pick.n);
+    else goTo("#library");
   });
 
   /* ---- Daily reward ---- */

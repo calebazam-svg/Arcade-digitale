@@ -9,6 +9,12 @@ Arcade originals. Nostalgic arcade energy meets a sleek, modern interface.
   perspective grid floor, animated starfield, and a rotating arcade cabinet.
 - **Arcade sounds** — WebAudio synth blips on hover/click and a coin jingle
   on reward claim (toggle in the top bar — no audio files needed).
+- **Playable games** — every title launches a real, playable canvas game
+  in an arcade modal with keyboard **and** on-screen D-pad/action controls,
+  live score, and per-game high scores (saved locally). Engines: Neon Snake,
+  Maze Muncher, endless runner, traffic dodger, wave shooter, Asteroids,
+  Bubble Pop, Pixel Heist (timing), Block Cascade (stacker), Spend 100
+  Million, and a Mystery Machine that loads a random game.
 - **Game library** — 16 games with thumbnails, ratings, play counts and
   badges (NEW / HOT / EXCLUSIVE), filterable by category.
 - **Categories** — Trending, Retro Legends, Multiplayer, New Releases,

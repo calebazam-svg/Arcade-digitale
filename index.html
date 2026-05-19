@@ -119,12 +119,51 @@
   </div>
 </section>
 
+<!-- Game player modal -->
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-label="Game player">
+    <div class="modal-bar">
+      <span class="m-title" id="mTitle">GAME</span>
+      <div class="m-meta">
+        <span class="m-score">SCORE <b id="mScore">0</b></span>
+        <span class="m-best">BEST <b id="mBest">0</b></span>
+        <button class="m-close" id="mClose" aria-label="Close game">✕</button>
+      </div>
+    </div>
+    <div class="stage">
+      <canvas id="screen" width="480" height="360"></canvas>
+      <div class="overlay" id="ovStart">
+        <h3 id="ovTitle">READY?</h3>
+        <p id="ovHow">Use the controls below.</p>
+        <button class="btn btn-primary" id="ovBtn">▶ START</button>
+      </div>
+      <div class="overlay hidden" id="ovEnd">
+        <h3>GAME OVER</h3>
+        <p id="ovFinal">Score: 0</p>
+        <button class="btn btn-primary" id="ovRetry">↻ PLAY AGAIN</button>
+      </div>
+    </div>
+    <div class="pad">
+      <div class="dpad">
+        <button data-k="up" aria-label="Up">▲</button>
+        <div>
+          <button data-k="left" aria-label="Left">◄</button>
+          <button data-k="down" aria-label="Down">▼</button>
+          <button data-k="right" aria-label="Right">►</button>
+        </div>
+      </div>
+      <button class="action-btn" data-k="action" aria-label="Action">A</button>
+    </div>
+  </div>
+</div>
+
 <footer class="footer">
   <div class="brand"><span class="brand-pix">▚</span><span class="brand-text">DIGITAL<em>ARCADE</em></span></div>
   <p class="foot-slogan">CLASSIC GAMES. NEW ADVENTURES.</p>
   <p class="foot-copy">© 2026 Digital Arcade · Press Start to relive the legends.</p>
 </footer>
 
+<script src="games.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

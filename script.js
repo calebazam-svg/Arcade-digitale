@@ -71,6 +71,19 @@
     const k = s.charCodeAt(0) % palette.length;
     return palette[k].join(",");
   }
+  /* ---- Scroll reveal (must be set up before first renderGames call) ---- */
+  const ro = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add("in"), (i % 8) * 60);
+        ro.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  function revealObserve() {
+    document.querySelectorAll(".gcard:not(.in)").forEach(n => ro.observe(n));
+  }
+
   const grid = $("#gameGrid");
   function renderGames(filter) {
     const list = filter && filter !== "All" ? games.filter(g => g.c.includes(filter)) : games;
@@ -236,18 +249,6 @@
     }, { threshold: .6 });
     o.observe(n);
   });
-
-  /* ---- Scroll reveal ---- */
-  let revealObserve;
-  {
-    const ro = new IntersectionObserver(en => {
-      en.forEach((x, i) => {
-        if (x.isIntersecting) { setTimeout(() => x.target.classList.add("in"), (i % 8) * 60); ro.unobserve(x.target); }
-      });
-    }, { threshold: .12 });
-    revealObserve = () => document.querySelectorAll(".gcard:not(.in)").forEach(n => ro.observe(n));
-    revealObserve();
-  }
 
   /* ---- Topbar + hero cabinet rotator ---- */
   addEventListener("scroll", () => $("#topbar").classList.toggle("scrolled", scrollY > 30), { passive: true });

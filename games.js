@@ -32,7 +32,14 @@
     IN.pclick = 0;
   }
   window.addEventListener("keydown", function(ev) {
-    var n = KMAP[ev.code]; if (!n || !ACTIVE) return;
+    if (!ACTIVE) return;
+    if (curGame && curGame.onkey) {
+      var c = ev.code;
+      if (/^Key[A-Z]$/.test(c)) { ev.preventDefault(); if(!ev.repeat) curGame.onkey(c.slice(3)); return; }
+      if (c === "Backspace")    { ev.preventDefault(); if(!ev.repeat) curGame.onkey("BACK");  return; }
+      if (c === "Enter")        { ev.preventDefault(); if(!ev.repeat) curGame.onkey("ENTER"); return; }
+    }
+    var n = KMAP[ev.code]; if (!n) return;
     ev.preventDefault(); if (!ev.repeat) dn(n);
   });
   window.addEventListener("keyup", function(ev) {
@@ -1426,17 +1433,17 @@
   });
 
   /* 19. Word Rush (unlimited Wordle: solve, repeat, score forever) */
-  reg("wordle","Unlimited Wordle. Left/Right pick a letter slot, Up/Down change that letter, A submits the 5-letter guess. Green = right spot, yellow = wrong spot. 6 tries per word; solve it for points then a fresh word. One failed word ends the run.",
+  reg("wordle","Unlimited Wordle — TYPE on your keyboard. Letters fill the row, Backspace deletes, Enter submits the 5-letter guess. Green = right spot, yellow = wrong spot. 6 tries per word; solve it for points then a fresh word. One failed word ends the run.",
   function(){
     var WORDS=["APPLE","BRAVE","CRANE","DRIVE","EAGLE","FLAME","GHOST","HEART",
       "IVORY","JOKER","KNEEL","LEMON","MANGO","NIGHT","OCEAN","PIANO","QUICK",
       "RIVER","STONE","TIGER","ULTRA","VIVID","WATER","XENON","YACHT","ZEBRA",
       "PLUMB","GLYPH","CRISP","FROST","BLAZE","CHARM","DWELL","EMBER","GIANT"];
     var ROWS=6;
-    var target, rows, ci, cur, solved=0, msg="", msgT=0, revealT=0;
+    var target, rows, typed, solved=0, msg="", msgT=0, revealT=0;
     function newWord(){
       target=WORDS[ri(0,WORDS.length-1)];
-      rows=[]; ci=0; cur=[65,65,65,65,65];
+      rows=[]; typed="";
     }
     newWord();
     function judge(g){
@@ -1447,93 +1454,136 @@
       return res;
     }
     return { score:0, over:false,
-      update:function(dt){
-        if(msgT>0)msgT-=dt;
-        if(revealT>0){ revealT-=dt; if(revealT<=0) this.over=true; return; }
-        if(IN.edge.left)  ci=(ci+4)%5;
-        if(IN.edge.right) ci=(ci+1)%5;
-        if(IN.edge.up)   cur[ci]=cur[ci]>=90?65:cur[ci]+1;
-        if(IN.edge.down) cur[ci]=cur[ci]<=65?90:cur[ci]-1;
-        if(IN.edge.action){
-          var g=cur.map(function(c){return String.fromCharCode(c);}).join("");
-          var res=judge(g);
+      onkey:function(k){
+        if(revealT>0) return;
+        if(k==="BACK"){ typed=typed.slice(0,-1); return; }
+        if(k==="ENTER"){
+          if(typed.length!==5) return;
+          var g=typed, res=judge(g);
           rows.push({g:g,r:res});
           if(g===target){
             var pts=(ROWS-rows.length+1)*90+60; this.score+=pts; solved++;
             msg="SOLVED  +"+pts; msgT=1.6; newWord();
           } else if(rows.length>=ROWS){
-            msg="WORD WAS "+target; msgT=2.2; revealT=2.2;
-          } else { ci=0; cur=[65,65,65,65,65]; }
+            msg="WORD WAS "+target; msgT=2.4; revealT=2.4;
+          } else { typed=""; }
+          return;
         }
+        if(typed.length<5 && /^[A-Z]$/.test(k)) typed+=k;
+      },
+      update:function(dt){
+        if(msgT>0)msgT-=dt;
+        if(revealT>0){ revealT-=dt; if(revealT<=0) this.over=true; }
       },
       draw:function(){
         clear("#0a0613","#10082a");
-        var BX=(W-5*54)/2, BY=44, BS=48, GP=6;
+        var BX=(W-5*54)/2, BY=40, BS=48;
         for(var r=0;r<ROWS;r++){
           for(var c=0;c<5;c++){
-            var x=BX+c*54, y=BY+r*50, fill="#160a26", bord="#3a2a6b", ch="";
-            if(r<rows.length){ var rr=rows[r];
+            var x=BX+c*54, y=BY+r*50, fill="#160a26", bord="#3a2a6b", ch="", done=r<rows.length;
+            if(done){ var rr=rows[r];
               ch=rr.g[c];
               fill=rr.r[c]===2?"#46ff9c":rr.r[c]===1?"#ffd23e":"#2a2150";
               bord=fill;
             } else if(r===rows.length && revealT<=0){
-              ch=String.fromCharCode(cur[c]);
-              if(c===ci) bord="#27e8ff";
+              ch=typed[c]||"";
+              if(c===typed.length) bord="#27e8ff";
             }
             rect(x,y,BS,BS,fill);
             ctx.strokeStyle=bord;ctx.lineWidth=2;ctx.strokeRect(x,y,BS,BS);
-            if(ch) px_txt(ch,x+BS/2,y+BS/2+7,16,r<rows.length?"#0a0613":"#f3ecff");
+            if(ch) px_txt(ch,x+BS/2,y+BS/2+7,16,done?"#0a0613":"#f3ecff");
           }
         }
         px_txt("SOLVED "+solved,8,20,8,"#9b8fc7","left");
         px_txt(""+this.score,W-8,20,9,"#ffd23e","right");
-        if(msgT>0) px_txt(msg,W/2,H-14,9,"#46ff9c");
+        px_txt("TYPE • ENTER • BACKSPACE",W/2,H-30,7,"#5a4a7a");
+        if(msgT>0) px_txt(msg,W/2,H-12,9,"#46ff9c");
       }};
   });
 
   /* 20. Map Tap (whack-a-mole grid — tap the lit cells, don't miss) */
-  reg("maptap","Tap / click the glowing cells the instant they pop up on the grid. They vanish fast and faster as you go — let 10 slip by and the run is over.",
+  reg("maptap","Geography challenge: you're given a city and country — click where it is on the world map. You're scored on how close you are (0–100 per round, 8 rounds). The real location is revealed each round.",
   function(){
-    var GC=4,GR=3,MX=24,MY=44,CW=(W-MX*2)/GC,CH=(H-MY-30)/GR;
-    var cells=[], spawnT=0, miss=0, el=0, hits=0;
-    for(var y=0;y<GR;y++)for(var x=0;x<GC;x++)
-      cells.push({x:MX+x*CW+CW/2, y:MY+y*CH+CH/2, on:0, life:0});
+    var TOP=34;                                   // map starts below the prompt bar
+    function PX(lon){ return (lon+180)/360*W; }
+    function PY(lat){ return TOP + (90-lat)/180*(H-TOP); }
+    function INV(ix,iy){ return [ ix/W*360-180, 90-(iy-TOP)/(H-TOP)*180 ]; }
+    var LAND=[
+      [[-168,66],[-140,70],[-95,71],[-80,52],[-58,48],[-66,44],[-75,30],[-97,18],[-105,23],[-118,33],[-125,48],[-140,60],[-168,66]],
+      [[-81,9],[-60,11],[-50,-3],[-35,-8],[-40,-23],[-58,-35],[-71,-52],[-75,-40],[-78,-15],[-81,9]],
+      [[-10,36],[-9,44],[-2,49],[-5,58],[6,62],[28,60],[40,56],[40,46],[27,41],[14,38],[-2,37],[-10,36]],
+      [[-17,21],[10,35],[33,32],[43,12],[51,11],[41,-4],[40,-25],[20,-35],[12,-18],[-6,5],[-17,21]],
+      [[40,46],[58,66],[100,73],[140,71],[160,62],[146,45],[122,30],[108,21],[95,8],[78,8],[68,24],[55,38],[40,46]],
+      [[114,-22],[130,-12],[143,-12],[150,-25],[145,-38],[131,-32],[116,-35],[114,-22]]
+    ];
+    var CITIES=[
+      ["Paris","France",2.35,48.85],["London","UK",-0.13,51.5],["New York","USA",-74,40.7],
+      ["Tokyo","Japan",139.7,35.7],["Sydney","Australia",151.2,-33.9],["Cairo","Egypt",31.2,30.0],
+      ["Rio de Janeiro","Brazil",-43.2,-22.9],["Moscow","Russia",37.6,55.75],["Beijing","China",116.4,39.9],
+      ["Cape Town","South Africa",18.4,-33.9],["Mumbai","India",72.8,19.0],["Mexico City","Mexico",-99.1,19.4],
+      ["Los Angeles","USA",-118.2,34.0],["Berlin","Germany",13.4,52.5],["Dubai","UAE",55.3,25.2],
+      ["Toronto","Canada",-79.4,43.7],["Buenos Aires","Argentina",-58.4,-34.6],["Lagos","Nigeria",3.4,6.5],
+      ["Bangkok","Thailand",100.5,13.7],["Istanbul","Turkey",29.0,41.0]
+    ];
+    var order=CITIES.slice(); for(var s=order.length-1;s>0;s--){var t=ri(0,s),tmp=order[s];order[s]=order[t];order[t]=tmp;}
+    var ROUNDS=8, idx=0, state="ask", resT=0, cx=0, cy=0, acc=0, km=0, cur=order[0];
     return { score:0, over:false,
       update:function(dt){
-        el+=dt; spawnT-=dt;
-        var ttl=Math.max(0.5,1.3-el*0.02);
-        if(spawnT<=0){
-          var off=cells.filter(function(c){return !c.on;});
-          if(off.length){ var k=off[ri(0,off.length-1)]; k.on=1; k.life=ttl; }
-          spawnT=Math.max(0.32,0.95-el*0.016);
-        }
-        for(var i=0;i<cells.length;i++){ var c=cells[i];
-          if(c.on){ c.life-=dt; if(c.life<=0){ c.on=0; if(++miss>=10) this.over=true; } }
-        }
-        if(IN.pclick){
-          for(var j=0;j<cells.length;j++){ var cc=cells[j];
-            if(cc.on && Math.abs(IN.px-cc.x)<CW/2-4 && Math.abs(IN.py-cc.y)<CH/2-4){
-              cc.on=0; hits++; this.score+=10+ (hits%10===0?40:0); break;
-            }
+        if(state==="show"){
+          resT-=dt;
+          if(resT<=0){
+            idx++;
+            if(idx>=ROUNDS){ this.over=true; return; }
+            cur=order[idx%order.length]; state="ask";
           }
+          return;
+        }
+        if(IN.pclick && IN.py>TOP){
+          cx=IN.px; cy=IN.py;
+          var ll=INV(cx,cy), dLat=ll[1]-cur[3];
+          var dLon=(ll[0]-cur[2])*Math.cos((ll[1]+cur[3])/2*Math.PI/180);
+          var deg=Math.hypot(dLat,dLon);
+          km=Math.round(deg*111);
+          acc=Math.max(0,Math.round(100*(1-deg/30)));
+          this.score+=acc;
+          state="show"; resT=1.9;
         }
       },
       draw:function(){
-        clear("#05030f","#0a0613");
-        for(var i=0;i<cells.length;i++){ var c=cells[i];
-          var w=CW-10,h=CH-10;
-          rect(c.x-w/2,c.y-h/2,w,h,"#160a26");
-          if(c.on){
-            var a=Math.max(0.25,c.life);
-            ctx.save();ctx.globalAlpha=Math.min(1,a+0.3);
-            rect(c.x-w/2,c.y-h/2,w,h,"#27e8ff");
-            ctx.restore();
-            ctx.fillStyle="#0a0613";ctx.beginPath();ctx.arc(c.x,c.y,Math.min(w,h)/3,0,7);ctx.fill();
-          }
-          ctx.strokeStyle="#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(c.x-w/2,c.y-h/2,w,h);
+        var g=ctx.createLinearGradient(0,0,0,H);
+        g.addColorStop(0,"#0a1430");g.addColorStop(1,"#06203a");
+        ctx.fillStyle=g;ctx.fillRect(0,TOP,W,H-TOP);
+        ctx.strokeStyle="rgba(39,232,255,.10)";ctx.lineWidth=1;
+        for(var gl=-150;gl<=150;gl+=30){ctx.beginPath();ctx.moveTo(PX(gl),TOP);ctx.lineTo(PX(gl),H);ctx.stroke();}
+        for(var ga=-60;ga<=60;ga+=30){ctx.beginPath();ctx.moveTo(0,PY(ga));ctx.lineTo(W,PY(ga));ctx.stroke();}
+        for(var L=0;L<LAND.length;L++){
+          ctx.fillStyle="#1f6b46";ctx.beginPath();
+          for(var p=0;p<LAND[L].length;p++){ var pt=LAND[L][p];
+            if(p===0)ctx.moveTo(PX(pt[0]),PY(pt[1])); else ctx.lineTo(PX(pt[0]),PY(pt[1])); }
+          ctx.closePath();ctx.fill();
+          ctx.strokeStyle="#46ff9c55";ctx.lineWidth=1;ctx.stroke();
         }
-        px_txt(""+this.score,W/2,24,11,"#ffd23e");
-        px_txt("MISS "+miss+"/10",W-8,24,8,"#ff3ea5","right");
+        // prompt bar
+        rect(0,0,W,TOP,"#0a0613");
+        px_txt("FIND:  "+cur[0]+", "+cur[1],W/2,22,9,"#ffd23e");
+        if(state==="show"){
+          var tx=PX(cur[2]), ty=PY(cur[3]);
+          ctx.strokeStyle="#46ff9c";ctx.lineWidth=2;
+          ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(tx,ty);ctx.stroke();
+          // your click
+          ctx.strokeStyle="#fff";ctx.lineWidth=3;
+          ctx.beginPath();ctx.moveTo(cx-7,cy-7);ctx.lineTo(cx+7,cy+7);
+          ctx.moveTo(cx+7,cy-7);ctx.lineTo(cx-7,cy+7);ctx.stroke();
+          // true location
+          ctx.fillStyle="#46ff9c";ctx.beginPath();ctx.arc(tx,ty,5,0,7);ctx.fill();
+          ctx.strokeStyle="#46ff9c";ctx.lineWidth=2;ctx.beginPath();ctx.arc(tx,ty,11,0,7);ctx.stroke();
+          px_txt(cur[0].toUpperCase(),tx,ty-16,7,"#46ff9c");
+          px_txt("±"+km+" KM   "+acc+"%",W/2,H-14,10,acc>=70?"#46ff9c":acc>=35?"#ffd23e":"#ff8a8a");
+        } else {
+          px_txt("CLICK THE MAP",W/2,H-14,8,"#5a7a9a");
+        }
+        px_txt("ROUND "+Math.min(idx+1,ROUNDS)+"/"+ROUNDS,8,22,7,"#9b8fc7","left");
+        px_txt(""+this.score,W-8,22,9,"#ffd23e","right");
       }};
   });
 

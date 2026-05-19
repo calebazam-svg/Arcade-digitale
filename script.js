@@ -25,7 +25,7 @@
     { n: "Neon Pong", e: "🏓", c: ["Retro Legends", "Competitive"], r: 4.6, plays: "510K" },
     { n: "Tower Siege", e: "🗼", c: ["New Releases", "Competitive"], r: 4.8, plays: "260K", badge: "new" },
     { n: "Word Rush", e: "🔤", c: ["New Releases", "Trending"], r: 4.7, plays: "390K", badge: "new" },
-    { n: "Map Tap", e: "🐹", c: ["New Releases", "Multiplayer"], r: 4.5, plays: "210K", badge: "new" },
+    { n: "Map Tap", e: "🌍", c: ["New Releases", "Trending"], r: 4.5, plays: "210K", badge: "new" },
   ];
 
   const exclusives = [

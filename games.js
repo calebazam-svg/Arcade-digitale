@@ -107,10 +107,14 @@
     "FPS Arena":"shooter",         "Galaxy Blaster":"galaxy",
     "Asteroid Storm":"asteroids",  "Bubble Pop Saga":"popper",
     "Block Cascade":"stacker",     "Pixel Heist":"heist",
-    "Spend 100 Million":"spend",   "Mystery Machine":"mystery"
+    "Spend 100 Million":"spend",   "Mystery Machine":"mystery",
+    "Claw Machine":"claw",         "Neon Pong":"pong",
+    "Tower Siege":"tower",         "Word Rush":"wordle",
+    "Map Tap":"maptap"
   };
   var POOL = ["snake","muncher","runner","rocket","dungeon","quest","dodger",
-              "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend"];
+              "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend",
+              "claw","pong","tower","wordle","maptap"];
 
   /* ── Shared pseudo-3D kart racer (Mario-Kart-style) ──────── */
   function makeRacer(cfg){
@@ -1235,6 +1239,301 @@
           px_txt(IT[i].n,cx+42,cy+22,7,"#f3ecff","left");
           px_txt(fmt(IT[i].p),cx+42,cy+40,7,"#ffd23e","left");
           if(owned[i])px_txt("x"+owned[i],cx+CW-10,cy+32,8,"#46ff9c","right");}
+      }};
+  });
+
+  /* 16. Claw Machine (rigged 1-in-20 grab even on a perfect line-up) */
+  reg("claw","Left/Right to slide the claw, A to drop it. Line the claw up EXACTLY over a prize — and even then it's a rigged 1-in-20 grab, just like a real arcade! Bag prizes for tickets before your credits run out.",
+  function(){
+    var clawX=W/2, state="aim", cy=46, credits=12, msg="", msgT=0, targetIdx=-1, win=false;
+    var prizes=[];
+    function layout(){
+      prizes=[]; var em=["🧸","🎁","🎮","💎","⭐"], val=[40,60,90,140,220];
+      for(var i=0;i<5;i++) prizes.push({x:74+i*84, got:false, e:em[i], val:val[i]});
+    }
+    layout();
+    return { score:0, over:false,
+      update:function(dt){
+        if(msgT>0)msgT-=dt;
+        if(state==="aim"){
+          if(IN.held.left)  clawX-=180*dt;
+          if(IN.held.right) clawX+=180*dt;
+          clawX=Math.max(40,Math.min(W-40,clawX));
+          if(IN.edge.action){
+            state="drop"; cy=46; targetIdx=-1;
+            for(var i=0;i<prizes.length;i++)
+              if(!prizes[i].got && Math.abs(prizes[i].x-clawX)<20){ targetIdx=i; break; }
+            win = targetIdx>=0 && Math.random()<1/20;
+          }
+        } else if(state==="drop"){
+          cy+=270*dt;
+          if(cy>=268){ cy=268;
+            if(win){ prizes[targetIdx].got=true; this.score+=prizes[targetIdx].val;
+              msg="WINNER  +"+prizes[targetIdx].val+" TIX"; msgT=1.7; }
+            else { msg=targetIdx>=0?"SO CLOSE - IT SLIPPED!":"MISSED - LINE IT UP"; msgT=1.5; }
+            state="rise";
+          }
+        } else if(state==="rise"){
+          cy-=250*dt;
+          if(cy<=46){ cy=46; state="aim"; credits--;
+            if(prizes.every(function(p){return p.got;})) layout();
+            if(credits<=0) this.over=true;
+          }
+        }
+      },
+      draw:function(){
+        clear("#1a0e2e","#0a0613");
+        ctx.strokeStyle="#9b6bff";ctx.lineWidth=4;ctx.strokeRect(10,10,W-20,H-20);
+        rect(20,40,W-40,4,"#3a2a6b");
+        rect(30,288,W-60,54,"#160a26");
+        ctx.font="26px serif";ctx.textAlign="center";ctx.fillStyle="#fff";
+        for(var i=0;i<prizes.length;i++){ if(prizes[i].got)continue;
+          ctx.fillText(prizes[i].e, prizes[i].x, 322); }
+        rect(clawX-1,44,2,cy-44,"#9b8fc7");
+        ctx.fillStyle=win&&state==="rise"?"#46ff9c":"#27e8ff";
+        ctx.beginPath();ctx.moveTo(clawX-14,cy);ctx.lineTo(clawX,cy+16);ctx.lineTo(clawX+14,cy);ctx.closePath();ctx.fill();
+        rect(clawX-3,cy-8,6,10,"#27e8ff");
+        if(state==="rise"&&win&&targetIdx>=0){ ctx.font="22px serif";ctx.fillStyle="#fff";ctx.fillText(prizes[targetIdx].e,clawX,cy+34); }
+        px_txt("CREDITS "+credits,14,H-16,8,"#ff3ea5","left");
+        px_txt("TIX "+this.score,W/2,28,11,"#ffd23e");
+        if(msgT>0) px_txt(msg,W/2,H/2,9,win?"#46ff9c":"#ff8a8a");
+      }};
+  });
+
+  /* 17. Neon Pong (you vs CPU — rally, score, miss = over) */
+  reg("pong","Up/Down (or D-pad) to move your paddle. Rally against the CPU: every return scores, and slipping one past it is a big bonus. Miss the ball and it's game over — it speeds up every hit.",
+  function(){
+    var PH=66, PW=10, py=H/2-PH/2, ax=W-24, ay=H/2-PH/2;
+    var bx=W/2,by=H/2,bvx=-230,bvy=110, rallies=0, you=0, cpu=0;
+    function serve(dx){ bx=W/2;by=H/2; var sp=250+rallies*7;
+      bvx=dx*sp; bvy=rnd(-150,150); }
+    return { score:0, over:false,
+      update:function(dt){
+        if(IN.held.up)   py-=330*dt;
+        if(IN.held.down) py+=330*dt;
+        py=Math.max(6,Math.min(H-6-PH,py));
+        var tgt=by-PH/2-ay, mv=Math.max(-280,Math.min(280,tgt*6));
+        ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
+        bx+=bvx*dt; by+=bvy*dt;
+        if(by<8){by=8;bvy=Math.abs(bvy);} if(by>H-8){by=H-8;bvy=-Math.abs(bvy);}
+        if(bvx<0 && bx-6<=24 && bx-6>=6 && by+6>=py && by-6<=py+PH){
+          bvx=Math.abs(bvx)*1.05; bx=30;
+          bvy+=((by-(py+PH/2))/(PH/2))*190; rallies++; this.score+=10;
+        }
+        if(bvx>0 && bx+6>=ax && bx+6<=ax+PW+6 && by+6>=ay && by-6<=ay+PH){
+          bvx=-Math.abs(bvx)*1.05; bx=ax-6;
+          bvy+=((by-(ay+PH/2))/(PH/2))*170;
+        }
+        bvy=Math.max(-360,Math.min(360,bvy));
+        if(bx<0){ cpu++; this.over=true; return; }
+        if(bx>W){ you++; this.score+=120; rallies++; serve(-1); }
+      },
+      draw:function(){
+        clear("#02030f","#0a0613");
+        ctx.strokeStyle="#27e8ff44";ctx.setLineDash([8,12]);ctx.lineWidth=3;
+        ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+        rect(14,py,PW,PH,"#46ff9c");
+        rect(ax,ay,PW,PH,"#ff3ea5");
+        rect(bx-6,by-6,12,12,"#ffd23e");
+        px_txt("YOU "+you,W/2-30,26,9,"#46ff9c","right");
+        px_txt("CPU "+cpu,W/2+30,26,9,"#ff3ea5","left");
+        px_txt(""+this.score,W/2,H-10,9,"#9b8fc7");
+      }};
+  });
+
+  /* 18. Tower Siege (place towers, hold the line, survive the waves) */
+  reg("tower","D-pad moves the build cursor; A drops a tower ($50) on empty ground. Towers auto-blast creeps following the path. Creeps that reach the exit cost a life. Survive the escalating waves — out of lives is game over.",
+  function(){
+    var COLS=12,ROWS=9,CS=40;
+    var WP=[[0,4],[3,4],[3,1],[8,1],[8,7],[11,7]];
+    var path={};
+    function fill(a,b){
+      var x=a[0],y=a[1],sx=Math.sign(b[0]-a[0]),sy=Math.sign(b[1]-a[1]);
+      while(x!==b[0]||y!==b[1]){ path[x+","+y]=1; if(x!==b[0])x+=sx; else if(y!==b[1])y+=sy; }
+      path[b[0]+","+b[1]]=1;
+    }
+    for(var i=0;i<WP.length-1;i++) fill(WP[i],WP[i+1]);
+    var wpx=WP.map(function(c){return [c[0]*CS+CS/2,c[1]*CS+CS/2];});
+    var cur={x:5,y:4}, gold=120, lives=12, wave=0, towers=[], creeps=[];
+    var spawnN=0, spawnT=0, betw=2.4, alive=0;
+    function startWave(){ wave++; spawnN=4+wave*2; spawnT=0; }
+    startWave();
+    return { score:0, over:false,
+      update:function(dt){
+        if(IN.edge.left) cur.x=Math.max(0,cur.x-1);
+        if(IN.edge.right)cur.x=Math.min(COLS-1,cur.x+1);
+        if(IN.edge.up)   cur.y=Math.max(0,cur.y-1);
+        if(IN.edge.down) cur.y=Math.min(ROWS-1,cur.y+1);
+        if(IN.edge.action){
+          var k=cur.x+","+cur.y, taken=towers.some(function(t){return t.cx===cur.x&&t.cy===cur.y;});
+          if(!path[k]&&!taken&&gold>=50){
+            gold-=50; towers.push({cx:cur.x,cy:cur.y,x:cur.x*CS+CS/2,y:cur.y*CS+CS/2,cd:0,rng:96,dmg:8,fx:0,fy:0,sh:0});
+          }
+        }
+        if(spawnN>0){ spawnT-=dt;
+          if(spawnT<=0){ spawnT=betw; spawnN--;
+            creeps.push({seg:0,x:wpx[0][0],y:wpx[0][1],hp:18+wave*9,mx:18+wave*9,spd:46+wave*3}); alive++;
+          }
+        }
+        for(var c=0;c<creeps.length;c++){
+          var cr=creeps[c]; if(cr.dead)continue;
+          var nx=wpx[cr.seg+1]; if(!nx){ cr.dead=true; alive--; lives--; continue; }
+          var dx=nx[0]-cr.x, dy=nx[1]-cr.y, d=Math.hypot(dx,dy)||1;
+          cr.x+=dx/d*cr.spd*dt; cr.y+=dy/d*cr.spd*dt;
+          if(Math.hypot(nx[0]-cr.x,nx[1]-cr.y)<4){ cr.x=nx[0];cr.y=nx[1];cr.seg++; }
+        }
+        for(var t=0;t<towers.length;t++){
+          var tw=towers[t]; tw.cd-=dt; if(tw.sh>0)tw.sh-=dt;
+          if(tw.cd<=0){
+            var tgt=null,bd=tw.rng;
+            for(var q=0;q<creeps.length;q++){ var cc=creeps[q]; if(cc.dead)continue;
+              var dd=Math.hypot(cc.x-tw.x,cc.y-tw.y); if(dd<bd){bd=dd;tgt=cc;} }
+            if(tgt){ tgt.hp-=tw.dmg; tw.cd=0.4; tw.fx=tgt.x; tw.fy=tgt.y; tw.sh=0.09;
+              if(tgt.hp<=0&&!tgt.dead){ tgt.dead=true; alive--; gold+=12; this.score+=15; } }
+          }
+        }
+        creeps=creeps.filter(function(o){return !o.dead;});
+        if(lives<=0){ this.over=true; return; }
+        if(spawnN<=0 && alive<=0){ gold+=40; this.score+=60; startWave(); }
+      },
+      draw:function(){
+        clear("#07120a","#0a0613");
+        for(var y=0;y<ROWS;y++)for(var x=0;x<COLS;x++){
+          if(path[x+","+y]) rect(x*CS+1,y*CS+1,CS-2,CS-2,"#3a2a1a");
+          else rect(x*CS+1,y*CS+1,CS-2,CS-2,"#10241a");
+        }
+        rect(wpx[0][0]-CS/2,wpx[0][1]-CS/2,CS,CS,"#27406b");
+        var ex=wpx[wpx.length-1];
+        rect(ex[0]-CS/2,ex[1]-CS/2,CS,CS,"#6b2740");
+        for(var t=0;t<towers.length;t++){
+          var tw=towers[t];
+          rect(tw.x-12,tw.y-12,24,24,"#27e8ff");
+          rect(tw.x-5,tw.y-18,10,10,"#9b6bff");
+          if(tw.sh>0){ ctx.strokeStyle="#ffd23e";ctx.lineWidth=2;
+            ctx.beginPath();ctx.moveTo(tw.x,tw.y);ctx.lineTo(tw.fx,tw.fy);ctx.stroke(); }
+        }
+        for(var c=0;c<creeps.length;c++){ var cr=creeps[c];
+          rect(cr.x-9,cr.y-9,18,18,"#ff3ea5");
+          rect(cr.x-9,cr.y-14,18*(cr.hp/cr.mx),3,"#46ff9c");
+        }
+        ctx.strokeStyle=path[cur.x+","+cur.y]||towers.some(function(t){return t.cx===cur.x&&t.cy===cur.y;})?"#ff3ea5":"#46ff9c";
+        ctx.lineWidth=2;ctx.strokeRect(cur.x*CS+2,cur.y*CS+2,CS-4,CS-4);
+        px_txt("$"+gold,8,16,8,"#ffd23e","left");
+        px_txt("LIVES "+lives,W/2,16,8,"#ff3ea5");
+        px_txt("WAVE "+wave,W-8,16,8,"#27e8ff","right");
+        px_txt(""+this.score,W/2,H-10,8,"#9b8fc7");
+      }};
+  });
+
+  /* 19. Word Rush (unlimited Wordle: solve, repeat, score forever) */
+  reg("wordle","Unlimited Wordle. Left/Right pick a letter slot, Up/Down change that letter, A submits the 5-letter guess. Green = right spot, yellow = wrong spot. 6 tries per word; solve it for points then a fresh word. One failed word ends the run.",
+  function(){
+    var WORDS=["APPLE","BRAVE","CRANE","DRIVE","EAGLE","FLAME","GHOST","HEART",
+      "IVORY","JOKER","KNEEL","LEMON","MANGO","NIGHT","OCEAN","PIANO","QUICK",
+      "RIVER","STONE","TIGER","ULTRA","VIVID","WATER","XENON","YACHT","ZEBRA",
+      "PLUMB","GLYPH","CRISP","FROST","BLAZE","CHARM","DWELL","EMBER","GIANT"];
+    var ROWS=6;
+    var target, rows, ci, cur, solved=0, msg="", msgT=0, revealT=0;
+    function newWord(){
+      target=WORDS[ri(0,WORDS.length-1)];
+      rows=[]; ci=0; cur=[65,65,65,65,65];
+    }
+    newWord();
+    function judge(g){
+      var res=[0,0,0,0,0], cnt={}, i;
+      for(i=0;i<5;i++){ var ch=target[i]; cnt[ch]=(cnt[ch]||0)+1; }
+      for(i=0;i<5;i++){ if(g[i]===target[i]){ res[i]=2; cnt[g[i]]--; } }
+      for(i=0;i<5;i++){ if(res[i]===0 && cnt[g[i]]>0){ res[i]=1; cnt[g[i]]--; } }
+      return res;
+    }
+    return { score:0, over:false,
+      update:function(dt){
+        if(msgT>0)msgT-=dt;
+        if(revealT>0){ revealT-=dt; if(revealT<=0) this.over=true; return; }
+        if(IN.edge.left)  ci=(ci+4)%5;
+        if(IN.edge.right) ci=(ci+1)%5;
+        if(IN.edge.up)   cur[ci]=cur[ci]>=90?65:cur[ci]+1;
+        if(IN.edge.down) cur[ci]=cur[ci]<=65?90:cur[ci]-1;
+        if(IN.edge.action){
+          var g=cur.map(function(c){return String.fromCharCode(c);}).join("");
+          var res=judge(g);
+          rows.push({g:g,r:res});
+          if(g===target){
+            var pts=(ROWS-rows.length+1)*90+60; this.score+=pts; solved++;
+            msg="SOLVED  +"+pts; msgT=1.6; newWord();
+          } else if(rows.length>=ROWS){
+            msg="WORD WAS "+target; msgT=2.2; revealT=2.2;
+          } else { ci=0; cur=[65,65,65,65,65]; }
+        }
+      },
+      draw:function(){
+        clear("#0a0613","#10082a");
+        var BX=(W-5*54)/2, BY=44, BS=48, GP=6;
+        for(var r=0;r<ROWS;r++){
+          for(var c=0;c<5;c++){
+            var x=BX+c*54, y=BY+r*50, fill="#160a26", bord="#3a2a6b", ch="";
+            if(r<rows.length){ var rr=rows[r];
+              ch=rr.g[c];
+              fill=rr.r[c]===2?"#46ff9c":rr.r[c]===1?"#ffd23e":"#2a2150";
+              bord=fill;
+            } else if(r===rows.length && revealT<=0){
+              ch=String.fromCharCode(cur[c]);
+              if(c===ci) bord="#27e8ff";
+            }
+            rect(x,y,BS,BS,fill);
+            ctx.strokeStyle=bord;ctx.lineWidth=2;ctx.strokeRect(x,y,BS,BS);
+            if(ch) px_txt(ch,x+BS/2,y+BS/2+7,16,r<rows.length?"#0a0613":"#f3ecff");
+          }
+        }
+        px_txt("SOLVED "+solved,8,20,8,"#9b8fc7","left");
+        px_txt(""+this.score,W-8,20,9,"#ffd23e","right");
+        if(msgT>0) px_txt(msg,W/2,H-14,9,"#46ff9c");
+      }};
+  });
+
+  /* 20. Map Tap (whack-a-mole grid — tap the lit cells, don't miss) */
+  reg("maptap","Tap / click the glowing cells the instant they pop up on the grid. They vanish fast and faster as you go — let 10 slip by and the run is over.",
+  function(){
+    var GC=4,GR=3,MX=24,MY=44,CW=(W-MX*2)/GC,CH=(H-MY-30)/GR;
+    var cells=[], spawnT=0, miss=0, el=0, hits=0;
+    for(var y=0;y<GR;y++)for(var x=0;x<GC;x++)
+      cells.push({x:MX+x*CW+CW/2, y:MY+y*CH+CH/2, on:0, life:0});
+    return { score:0, over:false,
+      update:function(dt){
+        el+=dt; spawnT-=dt;
+        var ttl=Math.max(0.5,1.3-el*0.02);
+        if(spawnT<=0){
+          var off=cells.filter(function(c){return !c.on;});
+          if(off.length){ var k=off[ri(0,off.length-1)]; k.on=1; k.life=ttl; }
+          spawnT=Math.max(0.32,0.95-el*0.016);
+        }
+        for(var i=0;i<cells.length;i++){ var c=cells[i];
+          if(c.on){ c.life-=dt; if(c.life<=0){ c.on=0; if(++miss>=10) this.over=true; } }
+        }
+        if(IN.pclick){
+          for(var j=0;j<cells.length;j++){ var cc=cells[j];
+            if(cc.on && Math.abs(IN.px-cc.x)<CW/2-4 && Math.abs(IN.py-cc.y)<CH/2-4){
+              cc.on=0; hits++; this.score+=10+ (hits%10===0?40:0); break;
+            }
+          }
+        }
+      },
+      draw:function(){
+        clear("#05030f","#0a0613");
+        for(var i=0;i<cells.length;i++){ var c=cells[i];
+          var w=CW-10,h=CH-10;
+          rect(c.x-w/2,c.y-h/2,w,h,"#160a26");
+          if(c.on){
+            var a=Math.max(0.25,c.life);
+            ctx.save();ctx.globalAlpha=Math.min(1,a+0.3);
+            rect(c.x-w/2,c.y-h/2,w,h,"#27e8ff");
+            ctx.restore();
+            ctx.fillStyle="#0a0613";ctx.beginPath();ctx.arc(c.x,c.y,Math.min(w,h)/3,0,7);ctx.fill();
+          }
+          ctx.strokeStyle="#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(c.x-w/2,c.y-h/2,w,h);
+        }
+        px_txt(""+this.score,W/2,24,11,"#ffd23e");
+        px_txt("MISS "+miss+"/10",W-8,24,8,"#ff3ea5","right");
       }};
   });
 

@@ -117,11 +117,11 @@
     "Spend 100 Million":"spend",   "Mystery Machine":"mystery",
     "Claw Machine":"claw",         "Neon Pong":"pong",
     "Tower Siege":"tower",         "Word Rush":"wordle",
-    "Map Tap":"maptap"
+    "Map Tap":"maptap",            "Turret Survivors":"survivor"
   };
   var POOL = ["snake","muncher","runner","rocket","dungeon","quest","dodger",
               "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend",
-              "claw","pong","tower","wordle","maptap"];
+              "claw","pong","tower","wordle","maptap","survivor"];
 
   /* ── Shared pseudo-3D kart racer (Mario-Kart-style) ──────── */
   function makeRacer(cfg){
@@ -933,12 +933,20 @@
     });
   });
 
-  /* 10. FPS Arena (TRUE first-person, level/wave campaign) */
-  reg("shooter","First-person arena campaign. Left/Right turns your view, A / Space fires at the crosshair. Each LEVEL has 4 waves — clear a wave (+150), beat all 4 to advance the level (+400). Armored foes from level 3 take two hits. Don't let anything reach you.",
+  /* 10. FPS Arena (first-person campaign with between-level armory shop) */
+  reg("shooter","First-person arena. Left/Right turns the view, A / Space fires. Clear 4 waves per LEVEL. Between levels the ARMORY opens — spend creds on better guns (pistol → SMG → shotgun → rifle → plasma). Earn creds for every kill.",
   function(){
-    var HFOV=Math.PI/3;
-    var WPL=4;                          // waves per level
+    var HFOV=Math.PI/3, WPL=4;
+    var WEAPONS=[
+      {n:"PISTOL",  cd:0.30, dmg:1, tol:0.14, multi:1, cost:0},
+      {n:"SMG",     cd:0.12, dmg:1, tol:0.14, multi:1, cost:220},
+      {n:"SHOTGUN", cd:0.65, dmg:1, tol:0.34, multi:3, cost:380},
+      {n:"RIFLE",   cd:0.50, dmg:3, tol:0.08, multi:1, cost:650},
+      {n:"PLASMA",  cd:0.20, dmg:4, tol:0.18, multi:1, cost:1200}
+    ];
+    var owned=[true,false,false,false,false], eq=0, creds=0;
     var aim=0, en=[], level=1, wave=1, cd=0, flash=0, banner="LEVEL 1", bannerT=1.6;
+    var state="play", sel=0, SHOP_N=WEAPONS.length+1;
     function spawn(){
       en=[];
       var n=Math.min(3+wave+level,11);
@@ -953,20 +961,45 @@
     return { score:0, over:false,
       update:function(dt){
         if(bannerT>0)bannerT-=dt;
+        if(state==="shop"){
+          if(IN.edge.left)  sel=(sel+SHOP_N-1)%SHOP_N;
+          if(IN.edge.right) sel=(sel+1)%SHOP_N;
+          if(IN.edge.action){
+            if(sel===SHOP_N-1){
+              level++; wave=1; this.score+=400;
+              banner="LEVEL "+level; bannerT=1.8; state="play"; spawn();
+            } else {
+              var w=WEAPONS[sel];
+              if(owned[sel]) eq=sel;
+              else if(creds>=w.cost){ creds-=w.cost; owned[sel]=true; eq=sel; }
+            }
+          }
+          return;
+        }
         if(IN.held.left)  aim-=2.2*dt;
         if(IN.held.right) aim+=2.2*dt;
         if(aim> Math.PI)aim-=Math.PI*2;
         if(aim<-Math.PI)aim+=Math.PI*2;
         cd-=dt; flash-=dt;
+        var W0=WEAPONS[eq];
         if((IN.edge.action||IN.held.action)&&cd<=0){
-          cd=0.3; flash=0.06;
-          var best=-1,bd=1e9;
+          cd=W0.cd; flash=0.06;
+          var picks=[];
           for(var i=0;i<en.length;i++){
             if(en[i].d)continue;
             var off=Math.abs(angDiff(en[i].ang,aim));
-            if(off<0.14 && en[i].dist<bd){ bd=en[i].dist; best=i; }
+            if(off<W0.tol) picks.push({i:i,d:en[i].dist});
           }
-          if(best>=0){ en[best].hp--; if(en[best].hp<=0){ en[best].d=true; this.score+=en[best].arm?90:50; } else this.score+=10; }
+          picks.sort(function(a,b){return a.d-b.d;});
+          var hits=Math.min(picks.length,W0.multi);
+          for(var k=0;k<hits;k++){
+            var ti=picks[k].i; en[ti].hp-=W0.dmg;
+            if(en[ti].hp<=0){
+              en[ti].d=true;
+              var pts=en[ti].arm?90:50; this.score+=pts;
+              creds += en[ti].arm?50:25;
+            } else this.score+=10;
+          }
         }
         for(var e=0;e<en.length;e++){
           if(en[e].d)continue;
@@ -976,7 +1009,7 @@
         en=en.filter(function(o){return !o.d;});
         if(!en.length){
           if(wave<WPL){ wave++; this.score+=150; banner="WAVE "+wave; bannerT=1.1; spawn(); }
-          else { level++; wave=1; this.score+=400; banner="LEVEL "+level; bannerT=1.8; spawn(); }
+          else { this.score+=200; state="shop"; sel=0; banner="ARMORY"; bannerT=1.6; }
         }
       },
       draw:function(){
@@ -1025,7 +1058,36 @@
         px_txt("LV "+level+"  W"+wave+"/"+WPL,8,18,8,"#9b8fc7","left");
         px_txt("FOES "+en.length,W-8,18,8,"#ff3ea5","right");
         px_txt(""+this.score,W/2,18,10,"#ffd23e");
-        if(bannerT>0) px_txt(banner,W/2,HZ-40,14,"#27e8ff");
+        px_txt(WEAPONS[eq].n,8,H-22,7,"#27e8ff","left");
+        px_txt("$ "+creds,8,H-10,7,"#ffd23e","left");
+        if(bannerT>0 && state!=="shop") px_txt(banner,W/2,HZ-40,14,"#27e8ff");
+        if(state==="shop"){
+          ctx.save();ctx.globalAlpha=.85;rect(0,0,W,H,"#02030f");ctx.restore();
+          px_txt("ARMORY  —  LEVEL "+level+" CLEARED",W/2,30,11,"#ffd23e");
+          px_txt("CREDS: $"+creds,W/2,52,8,"#27e8ff");
+          for(var i=0;i<SHOP_N;i++){
+            var bw=84, bh=120, gx=8+i*((W-16)/SHOP_N), bx=gx+((W-16)/SHOP_N-bw)/2, by=80;
+            var sl=i===sel;
+            if(i===SHOP_N-1){
+              rect(bx,by,bw,bh,sl?"#1a3a20":"#10241a");
+              ctx.strokeStyle=sl?"#46ff9c":"#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+              px_txt("FIGHT",bx+bw/2,by+bh/2-6,9,sl?"#fff":"#46ff9c");
+              px_txt("LV "+(level+1),bx+bw/2,by+bh/2+10,7,"#9b8fc7");
+            } else {
+              var w=WEAPONS[i];
+              var have=owned[i], can=have||creds>=w.cost;
+              rect(bx,by,bw,bh,sl?"#1a2350":"#160a26");
+              ctx.strokeStyle=sl?"#27e8ff":(have?"#46ff9c":"#3a2a6b");ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+              px_txt(w.n,bx+bw/2,by+18,8,can?"#fff":"#5a4a7a");
+              px_txt("DMG "+w.dmg,bx+bw/2,by+40,6,"#ff8a8a");
+              px_txt("CD "+w.cd.toFixed(2),bx+bw/2,by+54,6,"#27e8ff");
+              if(w.multi>1) px_txt("x"+w.multi,bx+bw/2,by+68,6,"#ffd23e");
+              if(have) px_txt(eq===i?"EQUIPPED":"OWNED",bx+bw/2,by+92,7,eq===i?"#46ff9c":"#9b8fc7");
+              else px_txt("$"+w.cost,bx+bw/2,by+92,8,can?"#ffd23e":"#ff8a8a");
+            }
+          }
+          px_txt("◄ ►  •  A: BUY / EQUIP / FIGHT",W/2,H-18,8,"#9b8fc7");
+        }
       }};
   });
 
@@ -1349,7 +1411,7 @@
   });
 
   /* 18. Tower Siege (place towers, hold the line, survive the waves) */
-  reg("tower","D-pad moves the build cursor; A drops a tower ($50) on empty ground. Towers auto-blast creeps following the path. Creeps that reach the exit cost a life. Survive the escalating waves — out of lives is game over.",
+  reg("tower","D-pad moves the build cursor; A drops a tower ($50) on empty ground. Towers auto-blast creeps along the path. Between waves the UPGRADE SHOP opens — spend gold on +damage, +range, faster fire, extra lives, or more gold per kill, then start the next wave.",
   function(){
     var COLS=12,ROWS=9,CS=40;
     var WP=[[0,4],[3,4],[3,1],[8,1],[8,7],[11,7]];
@@ -1363,10 +1425,41 @@
     var wpx=WP.map(function(c){return [c[0]*CS+CS/2,c[1]*CS+CS/2];});
     var cur={x:5,y:4}, gold=120, lives=12, wave=0, towers=[], creeps=[];
     var spawnN=0, spawnT=0, betw=2.4, alive=0;
+    var dmgL=0,rngL=0,rateL=0,incomeL=0,healUses=0;
+    var state="play", sel=0;
+    var UPS=[
+      {n:"+DAMAGE",  d:function(){return "+1 (now "+(8+dmgL+1)+")";},
+        cost:function(){return Math.round(60*Math.pow(1.6,dmgL));},
+        buy:function(){ dmgL++; }},
+      {n:"+RANGE",   d:function(){return "+18 (now "+(96+(rngL+1)*18)+")";},
+        cost:function(){return Math.round(60*Math.pow(1.6,rngL));},
+        buy:function(){ rngL++; }},
+      {n:"+RATE",    d:function(){return "-10% CD";},
+        cost:function(){return Math.round(80*Math.pow(1.7,rateL));},
+        buy:function(){ rateL++; }},
+      {n:"+3 LIVES", d:function(){return "patch the breach";},
+        cost:function(){return Math.round(120*Math.pow(2,healUses));},
+        buy:function(){ lives+=3; healUses++; }},
+      {n:"+INCOME",  d:function(){return "+5 gold/kill";},
+        cost:function(){return Math.round(160*Math.pow(1.6,incomeL));},
+        buy:function(){ incomeL++; }},
+      {n:"NEXT WAVE",d:function(){return "send it";},
+        cost:function(){return 0;}, buy:function(){ startWave(); state="play"; }}
+    ];
     function startWave(){ wave++; spawnN=4+wave*2; spawnT=0; }
     startWave();
     return { score:0, over:false,
       update:function(dt){
+        if(state==="shop"){
+          if(IN.edge.left)  sel=(sel+UPS.length-1)%UPS.length;
+          if(IN.edge.right) sel=(sel+1)%UPS.length;
+          if(IN.edge.action){
+            var u=UPS[sel], c=u.cost();
+            if(c===0){ u.buy(); }
+            else if(gold>=c){ gold-=c; u.buy(); }
+          }
+          return;
+        }
         if(IN.edge.left) cur.x=Math.max(0,cur.x-1);
         if(IN.edge.right)cur.x=Math.min(COLS-1,cur.x+1);
         if(IN.edge.up)   cur.y=Math.max(0,cur.y-1);
@@ -1374,7 +1467,7 @@
         if(IN.edge.action){
           var k=cur.x+","+cur.y, taken=towers.some(function(t){return t.cx===cur.x&&t.cy===cur.y;});
           if(!path[k]&&!taken&&gold>=50){
-            gold-=50; towers.push({cx:cur.x,cy:cur.y,x:cur.x*CS+CS/2,y:cur.y*CS+CS/2,cd:0,rng:96,dmg:8,fx:0,fy:0,sh:0});
+            gold-=50; towers.push({cx:cur.x,cy:cur.y,x:cur.x*CS+CS/2,y:cur.y*CS+CS/2,cd:0,fx:0,fy:0,sh:0});
           }
         }
         if(spawnN>0){ spawnT-=dt;
@@ -1389,19 +1482,20 @@
           cr.x+=dx/d*cr.spd*dt; cr.y+=dy/d*cr.spd*dt;
           if(Math.hypot(nx[0]-cr.x,nx[1]-cr.y)<4){ cr.x=nx[0];cr.y=nx[1];cr.seg++; }
         }
+        var TDM=8+dmgL, TRG=96+rngL*18, TCD=0.4*Math.pow(0.9,rateL), GPK=12+incomeL*5;
         for(var t=0;t<towers.length;t++){
           var tw=towers[t]; tw.cd-=dt; if(tw.sh>0)tw.sh-=dt;
           if(tw.cd<=0){
-            var tgt=null,bd=tw.rng;
+            var tgt=null,bd=TRG;
             for(var q=0;q<creeps.length;q++){ var cc=creeps[q]; if(cc.dead)continue;
               var dd=Math.hypot(cc.x-tw.x,cc.y-tw.y); if(dd<bd){bd=dd;tgt=cc;} }
-            if(tgt){ tgt.hp-=tw.dmg; tw.cd=0.4; tw.fx=tgt.x; tw.fy=tgt.y; tw.sh=0.09;
-              if(tgt.hp<=0&&!tgt.dead){ tgt.dead=true; alive--; gold+=12; this.score+=15; } }
+            if(tgt){ tgt.hp-=TDM; tw.cd=TCD; tw.fx=tgt.x; tw.fy=tgt.y; tw.sh=0.09;
+              if(tgt.hp<=0&&!tgt.dead){ tgt.dead=true; alive--; gold+=GPK; this.score+=15; } }
           }
         }
         creeps=creeps.filter(function(o){return !o.dead;});
         if(lives<=0){ this.over=true; return; }
-        if(spawnN<=0 && alive<=0){ gold+=40; this.score+=60; startWave(); }
+        if(spawnN<=0 && alive<=0){ gold+=40; this.score+=60; state="shop"; sel=0; }
       },
       draw:function(){
         clear("#07120a","#0a0613");
@@ -1423,12 +1517,32 @@
           rect(cr.x-9,cr.y-9,18,18,"#ff3ea5");
           rect(cr.x-9,cr.y-14,18*(cr.hp/cr.mx),3,"#46ff9c");
         }
-        ctx.strokeStyle=path[cur.x+","+cur.y]||towers.some(function(t){return t.cx===cur.x&&t.cy===cur.y;})?"#ff3ea5":"#46ff9c";
-        ctx.lineWidth=2;ctx.strokeRect(cur.x*CS+2,cur.y*CS+2,CS-4,CS-4);
+        if(state==="play"){
+          ctx.strokeStyle=path[cur.x+","+cur.y]||towers.some(function(t){return t.cx===cur.x&&t.cy===cur.y;})?"#ff3ea5":"#46ff9c";
+          ctx.lineWidth=2;ctx.strokeRect(cur.x*CS+2,cur.y*CS+2,CS-4,CS-4);
+        }
         px_txt("$"+gold,8,16,8,"#ffd23e","left");
         px_txt("LIVES "+lives,W/2,16,8,"#ff3ea5");
         px_txt("WAVE "+wave,W-8,16,8,"#27e8ff","right");
         px_txt(""+this.score,W/2,H-10,8,"#9b8fc7");
+        if(state==="shop"){
+          ctx.save();ctx.globalAlpha=.86;rect(0,0,W,H,"#02030f");ctx.restore();
+          px_txt("WAVE "+wave+" CLEARED — UPGRADE SHOP",W/2,32,10,"#ffd23e");
+          px_txt("GOLD $"+gold,W/2,52,8,"#46ff9c");
+          for(var i=0;i<UPS.length;i++){
+            var bw=72, bh=140, gx=8+i*((W-16)/UPS.length), bx=gx+((W-16)/UPS.length-bw)/2, by=72;
+            var sl=i===sel, u=UPS[i], cost=u.cost(), can=cost===0||gold>=cost, fight=i===UPS.length-1;
+            rect(bx,by,bw,bh,sl?(fight?"#1a3a20":"#1a2350"):(fight?"#10241a":"#160a26"));
+            ctx.strokeStyle=sl?(fight?"#46ff9c":"#27e8ff"):(can?"#3a2a6b":"#2a1820");
+            ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+            px_txt(u.n,bx+bw/2,by+18,7,can?"#fff":"#5a4a7a");
+            var lines=u.d().split(" ");
+            for(var ln=0;ln<lines.length;ln++) px_txt(lines[ln],bx+bw/2,by+42+ln*12,6,"#9b8fc7");
+            if(fight) px_txt("▶",bx+bw/2,by+bh-30,12,"#46ff9c");
+            else px_txt("$"+cost,bx+bw/2,by+bh-18,8,can?"#ffd23e":"#ff8a8a");
+          }
+          px_txt("◄ ►  •  A: BUY / START",W/2,H-18,8,"#9b8fc7");
+        }
       }};
   });
 
@@ -1584,6 +1698,145 @@
         }
         px_txt("ROUND "+Math.min(idx+1,ROUNDS)+"/"+ROUNDS,8,22,7,"#9b8fc7","left");
         px_txt(""+this.score,W-8,22,9,"#ffd23e","right");
+      }};
+  });
+
+  /* 21. Turret Survivors (auto-fire survival; level up to pick 1 of 3 upgrades) */
+  reg("survivor","D-pad / arrows to move. Your turret AUTO-FIRES at the nearest enemy. Every kill gives XP — at each level-up the game pauses and you pick 1 of 3 upgrades. Survive the swarm as long as you can!",
+  function(){
+    var px=W/2, py=H/2, pr=11, hp=10, maxhp=10, spd=130;
+    var dmg=1, rate=0.45, bspd=340, pierce=1, mult=1, regenR=0;
+    var bul=[], en=[], spawnT=0, fireT=0, time=0, kills=0, xp=0, lvl=1, xpNext=8;
+    var state="play", choices=[], ci=0, regAcc=0, hitFlash=0;
+    var UPS=[
+      {n:"+DAMAGE",   d:"deal +1 damage",        a:function(){dmg+=1;}},
+      {n:"+FIRE RATE",d:"-18% cooldown",         a:function(){rate=Math.max(0.07,rate*0.82);}},
+      {n:"+SPEED",    d:"bullets +25% faster",   a:function(){bspd*=1.25;}},
+      {n:"+PIERCE",   d:"shots hit +1 enemy",    a:function(){pierce+=1;}},
+      {n:"+MULTI",    d:"fire +1 bullet at once",a:function(){mult+=1;}},
+      {n:"+MAX HP",   d:"+3 max HP, heal full",  a:function(){maxhp+=3;hp=maxhp;}},
+      {n:"+REGEN",    d:"regen +0.4 HP/s",       a:function(){regenR+=0.4;}},
+      {n:"+MOVE",     d:"+15% move speed",       a:function(){spd*=1.15;}}
+    ];
+    function pickChoices(){
+      var pool=UPS.slice();
+      for(var s=pool.length-1;s>0;s--){var t=ri(0,s),tmp=pool[s];pool[s]=pool[t];pool[t]=tmp;}
+      choices=pool.slice(0,3); ci=0;
+    }
+    return { score:0, over:false,
+      update:function(dt){
+        if(hitFlash>0)hitFlash-=dt;
+        if(state==="up"){
+          if(IN.edge.left)  ci=(ci+2)%3;
+          if(IN.edge.right) ci=(ci+1)%3;
+          if(IN.edge.action){ choices[ci].a(); state="play"; }
+          return;
+        }
+        time+=dt;
+        if(regenR>0){ regAcc+=dt*regenR; while(regAcc>=1){regAcc-=1; hp=Math.min(maxhp,hp+1);} }
+        var mx=0,my=0;
+        if(IN.held.left)mx=-1; if(IN.held.right)mx=1;
+        if(IN.held.up)my=-1;   if(IN.held.down)my=1;
+        if(mx||my){ var n=Math.hypot(mx,my); px+=mx/n*spd*dt; py+=my/n*spd*dt; }
+        px=Math.max(pr,Math.min(W-pr,px));
+        py=Math.max(pr,Math.min(H-pr,py));
+        // spawn
+        spawnT-=dt;
+        if(spawnT<=0){
+          var side=ri(0,3), ex,ey;
+          if(side===0){ex=rnd(0,W);ey=-14;}
+          else if(side===1){ex=W+14;ey=rnd(0,H);}
+          else if(side===2){ex=rnd(0,W);ey=H+14;}
+          else{ex=-14;ey=rnd(0,H);}
+          var ehp=2+Math.floor(time/14);
+          en.push({x:ex,y:ey,hp:ehp,mx:ehp,sp:46+time*1.6,r:11});
+          spawnT=Math.max(0.18,1.0-time*0.012);
+        }
+        // enemies move + contact
+        for(var e=0;e<en.length;e++){
+          var ee=en[e]; var dxv=px-ee.x,dyv=py-ee.y,dd=Math.hypot(dxv,dyv)||1;
+          ee.x+=dxv/dd*ee.sp*dt; ee.y+=dyv/dd*ee.sp*dt;
+          if(dd<pr+ee.r){ hp-=2.2*dt; hitFlash=0.12; }
+        }
+        if(hp<=0){ this.over=true; return; }
+        // auto-fire at nearest
+        fireT-=dt;
+        if(fireT<=0 && en.length){
+          var best=null,bd=1e9;
+          for(var i=0;i<en.length;i++){ var d2=Math.hypot(en[i].x-px,en[i].y-py); if(d2<bd){bd=d2;best=en[i];} }
+          if(best){
+            var ang=Math.atan2(best.y-py,best.x-px);
+            for(var s=0;s<mult;s++){
+              var spread=mult>1?(s-(mult-1)/2)*0.20:0;
+              var a=ang+spread;
+              bul.push({x:px,y:py,vx:Math.cos(a)*bspd,vy:Math.sin(a)*bspd,life:1.5,pi:pierce-1,hit:{}});
+            }
+            fireT=rate;
+          }
+        }
+        // bullets
+        for(var b=0;b<bul.length;b++){
+          var bb=bul[b]; bb.x+=bb.vx*dt; bb.y+=bb.vy*dt; bb.life-=dt;
+          for(var k=0;k<en.length;k++){
+            var ek=en[k]; if(ek.dead||bb.hit[k])continue;
+            if(Math.hypot(bb.x-ek.x,bb.y-ek.y)<ek.r){
+              ek.hp-=dmg; bb.hit[k]=1;
+              if(ek.hp<=0&&!ek.dead){ ek.dead=true; kills++; this.score+=10; xp+=1;
+                if(xp>=xpNext){ xp-=xpNext; lvl++; xpNext=Math.floor(xpNext*1.4); pickChoices(); state="up"; }
+              }
+              if(bb.pi<=0){ bb.life=0; break; }
+              bb.pi--;
+            }
+          }
+        }
+        bul=bul.filter(function(o){return o.life>0 && o.x>-12 && o.x<W+12 && o.y>-12 && o.y<H+12;});
+        en =en.filter(function(o){return !o.dead;});
+      },
+      draw:function(){
+        clear("#0a0613","#160a26");
+        ctx.strokeStyle="rgba(155,107,255,.08)";ctx.lineWidth=1;
+        for(var x=0;x<W;x+=24){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+        for(var y=0;y<H;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+        for(var e=0;e<en.length;e++){ var ee=en[e];
+          rect(ee.x-ee.r,ee.y-ee.r,ee.r*2,ee.r*2,"#ff3ea5");
+          rect(ee.x-ee.r,ee.y-ee.r-5,ee.r*2*(ee.hp/ee.mx),3,"#46ff9c");
+        }
+        ctx.fillStyle="#ffd23e";
+        for(var b=0;b<bul.length;b++){ctx.beginPath();ctx.arc(bul[b].x,bul[b].y,3,0,7);ctx.fill();}
+        // turret base + barrel toward nearest
+        ctx.fillStyle=hitFlash>0?"#ff8a8a":"#27e8ff";
+        ctx.beginPath();ctx.arc(px,py,12,0,7);ctx.fill();
+        ctx.fillStyle="#0a0613";ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fill();
+        if(en.length){
+          var best=en[0],bd=1e9;
+          for(var i=0;i<en.length;i++){ var d2=Math.hypot(en[i].x-px,en[i].y-py); if(d2<bd){bd=d2;best=en[i];} }
+          var ang=Math.atan2(best.y-py,best.x-px);
+          ctx.save();ctx.translate(px,py);ctx.rotate(ang);
+          rect(0,-3,18,6,"#9b6bff");ctx.restore();
+        }
+        // HUD bars
+        rect(8,8,140,8,"#160a26");
+        rect(8,8,140*Math.max(0,hp/maxhp),8,"#46ff9c");
+        px_txt("HP "+Math.max(0,Math.ceil(hp))+"/"+maxhp,12,26,7,"#46ff9c","left");
+        rect(W-148,8,140,8,"#160a26");
+        rect(W-148,8,140*(xp/xpNext),8,"#27e8ff");
+        px_txt("LV "+lvl,W-12,26,7,"#27e8ff","right");
+        px_txt(""+this.score,W/2,18,11,"#ffd23e");
+        px_txt(Math.floor(time)+"s   "+kills+" KILLS",W/2,H-8,7,"#9b8fc7");
+        if(state==="up"){
+          ctx.save();ctx.globalAlpha=.86;rect(0,0,W,H,"#02030f");ctx.restore();
+          px_txt("LEVEL "+lvl+"  —  PICK AN UPGRADE",W/2,52,11,"#ffd23e");
+          for(var i=0;i<3;i++){
+            var bw=130, bx=18+i*(bw+16), by=98;
+            var sl=i===ci;
+            rect(bx,by,bw,160,sl?"#1a2350":"#160a26");
+            ctx.strokeStyle=sl?"#27e8ff":"#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,160);
+            px_txt(choices[i].n,bx+bw/2,by+30,9,sl?"#fff":"#9b8fc7");
+            var words=choices[i].d.split(" ");
+            for(var w=0;w<words.length;w++) px_txt(words[w],bx+bw/2,by+62+w*14,7,"#9b8fc7");
+          }
+          px_txt("◄ ►  •  A: SELECT",W/2,H-18,8,"#9b8fc7");
+        }
       }};
   });
 

@@ -1308,7 +1308,7 @@
   });
 
   /* 17. Neon Pong (you vs CPU — rally, score, miss = over) */
-  reg("pong","Up/Down (or D-pad) to move your paddle. Rally against the CPU: every return scores, and slipping one past it is a big bonus. Miss the ball and it's game over — it speeds up every hit.",
+  reg("pong","Up/Down (or D-pad) to move your paddle. First to 3 wins. Every return scores; sneaking one past the CPU is a big bonus and a point. Lose 3 points first and the match is over.",
   function(){
     var PH=66, PW=10, py=H/2-PH/2, ax=W-24, ay=H/2-PH/2;
     var bx=W/2,by=H/2,bvx=-230,bvy=110, rallies=0, you=0, cpu=0;
@@ -1332,8 +1332,8 @@
           bvy+=((by-(ay+PH/2))/(PH/2))*170;
         }
         bvy=Math.max(-360,Math.min(360,bvy));
-        if(bx<0){ cpu++; this.over=true; return; }
-        if(bx>W){ you++; this.score+=120; rallies++; serve(-1); }
+        if(bx<0){ cpu++; if(cpu>=3){ this.over=true; return; } serve(1); }
+        if(bx>W){ you++; this.score+=120; rallies++; if(you>=3){ this.score+=300; this.over=true; return; } serve(-1); }
       },
       draw:function(){
         clear("#02030f","#0a0613");
@@ -1342,8 +1342,8 @@
         rect(14,py,PW,PH,"#46ff9c");
         rect(ax,ay,PW,PH,"#ff3ea5");
         rect(bx-6,by-6,12,12,"#ffd23e");
-        px_txt("YOU "+you,W/2-30,26,9,"#46ff9c","right");
-        px_txt("CPU "+cpu,W/2+30,26,9,"#ff3ea5","left");
+        px_txt("YOU "+you+"/3",W/2-30,26,9,"#46ff9c","right");
+        px_txt("CPU "+cpu+"/3",W/2+30,26,9,"#ff3ea5","left");
         px_txt(""+this.score,W/2,H-10,9,"#9b8fc7");
       }};
   });

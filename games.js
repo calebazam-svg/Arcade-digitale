@@ -2069,9 +2069,9 @@
   });
 
   /* 23. Pong Cup (16-team knockout, best-of-7 series each round) */
-  reg("pongcup","Tournament Pong! Pick your team and battle a 16-team knockout bracket. Every round is a BEST-OF-7 series (first to 4 game wins). Each game is first to 5 points. Up/Down move your paddle, A serves. The CPU gets tougher every round — win the final to take the cup.",
+  reg("pongcup","Tournament Pong! Pick your team and battle a 16-team knockout bracket — and watch the WHOLE bracket fill in (the other matches are simulated). Every round is a BEST-OF-7 series (first to 4 game wins); each game is first to 5 points. Up/Down move your paddle, A serves. The CPU gets tougher every round — win the final to take the cup.",
   function(){
-    var PH=64, PW=10, GP=5, NEED=4;          // points per game, games to win series
+    var PH=64, PW=10, GP=5, NEED=4;
     var TEAMS=[
       {n:"ACES",c:"#27e8ff"},{n:"BOLTS",c:"#ffd23e"},{n:"COBRAS",c:"#46ff9c"},{n:"DRAGONS",c:"#ff3ea5"},
       {n:"EAGLES",c:"#9b6bff"},{n:"FALCONS",c:"#ff8a3e"},{n:"GHOSTS",c:"#2ad6c0"},{n:"HAWKS",c:"#ff6b9b"},
@@ -2079,17 +2079,63 @@
       {n:"MAGMA",c:"#ff5e5e"},{n:"NOVA",c:"#5e9bff"},{n:"OMEGA",c:"#b0ff5e"},{n:"PULSE",c:"#ff5ec4"}
     ];
     var ROUNDS=["","ROUND OF 16","QUARTER-FINAL","SEMI-FINAL","FINAL"];
-    var state="team", tmSel=0, round=1, opp=null, used=[], tally=0;
-    var sYou=0, sOpp=0, pPts=0, aPts=0;
-    var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false, win=false;
+    var state="team", tmSel=0, round=1, tally=0;
+    var roundTeams=[], playerSlot=0, oppIdx=0, champIdx=-1;
+    var sYou=0, sOpp=0, pPts=0, aPts=0, win=false;
+    var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false;
     function aiSpd(){ return 250+round*38; }
-    function serve(dx){ bx=W/2; by=H/2; var sp=230+round*12+rallies*6;
-      bvx=dx*sp; bvy=rnd(-150,150); served=true; }
+    function serve(dx){ bx=W/2; by=H/2; var sp=230+round*12+rallies*6; bvx=dx*sp; bvy=rnd(-150,150); served=true; }
     function newGame(){ pPts=0; aPts=0; py=H/2-PH/2; ay=H/2-PH/2; served=false; bvx=0; bvy=0; bx=W/2; by=H/2; rallies=0; }
-    function newSeries(){
-      var pool=[]; for(var i=0;i<TEAMS.length;i++) if(i!==tmSel && used.indexOf(i)<0) pool.push(i);
-      var oi=pool[ri(0,pool.length-1)]; used.push(oi); opp=TEAMS[oi];
-      sYou=0; sOpp=0; newGame();
+    function buildWinners(arr,pmi,forced){
+      var w=[];
+      for(var j=0;j*2<arr.length;j++){
+        var a=arr[2*j], b=arr[2*j+1];
+        w.push(j===pmi?forced:(Math.random()<0.5?a:b));
+      }
+      return w;
+    }
+    function newCup(){
+      var others=[]; for(var i=0;i<16;i++) if(i!==tmSel) others.push(i);
+      for(var s=others.length-1;s>0;s--){var t=ri(0,s),tmp=others[s];others[s]=others[t];others[t]=tmp;}
+      roundTeams=[[tmSel].concat(others)];
+      round=1; playerSlot=0; oppIdx=roundTeams[0][1]; champIdx=-1; sYou=0; sOpp=0; newGame();
+    }
+    function advanceWin(){
+      tally+=200;
+      var pmi=Math.floor(playerSlot/2);
+      roundTeams[round]=buildWinners(roundTeams[round-1],pmi,tmSel);
+      playerSlot=pmi;
+      if(round>=4){ tally+=800; champIdx=tmSel; state="champion"; }
+      else { round++; oppIdx=roundTeams[round-1][playerSlot^1]; sYou=0; sOpp=0; newGame(); state="bracketview"; }
+    }
+    function loseOut(){
+      var pmi=Math.floor(playerSlot/2);
+      roundTeams[round]=buildWinners(roundTeams[round-1],pmi,oppIdx);
+      var r=round;
+      while(roundTeams[r].length>1){ roundTeams[r+1]=buildWinners(roundTeams[r],-1,-1); r++; }
+      champIdx=roundTeams[r][0];
+      state="result";
+    }
+    function teamChip(x,y,w,h,idx,ol){
+      var t=TEAMS[idx];
+      rect(x,y,w,h, idx===tmSel?"#1a2350":"#120a1e");
+      ctx.fillStyle=t.c; ctx.fillRect(x+2,y+2,h-4,h-4);
+      px_txt(t.n.slice(0,5), x+h+2, y+h-4, 5, idx===tmSel?"#fff":"#9b8fc7","left");
+      if(ol){ ctx.strokeStyle=ol;ctx.lineWidth=1;ctx.strokeRect(x,y,w,h); }
+    }
+    function drawBracket(){
+      var top=46, bot=H-30, rangeH=bot-top, colN=5, colW=(W-8)/colN;
+      var labels=["R16","QF","SF","FIN","CUP"];
+      for(var c=0;c<colN;c++) px_txt(labels[c],4+c*colW+colW/2,42,5,"#5a7a9a");
+      for(var cc=0;cc<roundTeams.length;cc++){
+        var arr=roundTeams[cc], N=arr.length, x=4+cc*colW, w=colW-6, chH=Math.min(15,rangeH/N-2);
+        for(var i=0;i<N;i++){
+          var ym=top+(i+0.5)*rangeH/N-chH/2;
+          var champ=(cc===4&&N===1);
+          var ol=arr[i]===tmSel?"#27e8ff":(champ?"#ffd23e":null);
+          teamChip(x,ym,w,chH,arr[i],ol);
+        }
+      }
     }
     return { score:0, over:false,
       update:function(dt){
@@ -2099,18 +2145,12 @@
           if(IN.edge.right) tmSel=(tmSel+1)%16;
           if(IN.edge.up)    tmSel=(tmSel+12)%16;
           if(IN.edge.down)  tmSel=(tmSel+4)%16;
-          if(IN.edge.action){ used=[]; round=1; newSeries(); state="bracket"; }
+          if(IN.edge.action){ newCup(); state="bracketview"; }
           return;
         }
-        if(state==="bracket"){ if(IN.edge.action){ newGame(); state="play"; } return; }
-        if(state==="result"){
-          if(IN.edge.action){
-            if(win){ tally+=200; if(round>=4){ tally+=800; state="champion"; } else { round++; newSeries(); state="bracket"; } }
-            else { this.over=true; }
-          }
-          return;
-        }
-        if(state==="champion"){ if(IN.edge.action){ this.over=true; } return; }
+        if(state==="bracketview"){ if(IN.edge.action){ newGame(); state="play"; } return; }
+        if(state==="result"){ if(IN.edge.action) this.over=true; return; }
+        if(state==="champion"){ if(IN.edge.action) this.over=true; return; }
         // ---- play ----
         if(!served){ if(IN.edge.action) serve(Math.random()<0.5?-1:1); return; }
         if(IN.held.up)   py-=340*dt;
@@ -2131,8 +2171,8 @@
         if(bx<0){ aPts++; scored=true; }
         if(bx>W){ pPts++; tally+=10; scored=true; }
         if(scored){
-          if(pPts>=GP){ sYou++; if(sYou>=NEED){ win=true; state="result"; } else { newGame(); } }
-          else if(aPts>=GP){ sOpp++; if(sOpp>=NEED){ win=false; state="result"; } else { newGame(); } }
+          if(pPts>=GP){ sYou++; if(sYou>=NEED){ win=true; advanceWin(); } else newGame(); }
+          else if(aPts>=GP){ sOpp++; if(sOpp>=NEED){ win=false; loseOut(); } else newGame(); }
           else serve(bx<0?1:-1);
         }
       },
@@ -2152,44 +2192,41 @@
           px_txt("◄ ► ▲ ▼  •  A: CONFIRM",W/2,H-14,8,"#9b8fc7");
           return;
         }
-        if(state==="bracket"){
+        if(state==="bracketview"){
           clear("#02030f","#0a0613");
-          px_txt(ROUNDS[round]||("ROUND "+round),W/2,60,12,"#ffd23e");
-          ctx.fillStyle=TEAMS[tmSel].c;ctx.fillRect(W/2-110,120,40,40);
-          ctx.fillStyle=opp.c;ctx.fillRect(W/2+70,120,40,40);
-          px_txt(TEAMS[tmSel].n,W/2-90,178,7,"#fff");
-          px_txt("VS",W/2,146,11,"#ff3ea5");
-          px_txt(opp.n,W/2+90,178,7,"#fff");
-          px_txt("SERIES  "+sYou+" - "+sOpp+"   (BEST OF 7)",W/2,215,8,"#27e8ff");
-          px_txt("PRESS A TO PLAY GAME "+(sYou+sOpp+1),W/2,H-34,9,"#46ff9c");
+          px_txt("PONG CUP — "+(ROUNDS[round]||""),W/2,18,8,"#ffd23e");
+          drawBracket();
+          px_txt("YOU: "+TEAMS[tmSel].n+"  VS  "+TEAMS[oppIdx].n+"   SERIES "+sYou+"-"+sOpp,W/2,H-16,6,"#fff");
+          px_txt("A: PLAY GAME "+(sYou+sOpp+1)+" (BEST OF 7)",W/2,H-6,6,"#46ff9c");
           return;
         }
-        // play / result / champion show the court
+        if(state==="result"||state==="champion"){
+          clear("#02030f","#0a0613");
+          drawBracket();
+          ctx.save();ctx.globalAlpha=.82;rect(40,120,W-80,110,"#02030f");ctx.restore();
+          ctx.strokeStyle=state==="champion"?"#ffd23e":"#ff3ea5";ctx.lineWidth=2;ctx.strokeRect(40,120,W-80,110);
+          if(state==="champion"){
+            px_txt("YOU WIN THE CUP!",W/2,150,12,"#ffd23e");
+            px_txt(TEAMS[tmSel].n+" — CHAMPIONS",W/2,178,8,TEAMS[tmSel].c);
+          } else {
+            px_txt("KNOCKED OUT",W/2,150,12,"#ff3ea5");
+            px_txt("CHAMPION: "+TEAMS[champIdx].n,W/2,178,9,TEAMS[champIdx].c);
+          }
+          px_txt("PRESS A",W/2,212,8,"#9b8fc7");
+          return;
+        }
+        // ---- court ----
         clear("#02030f","#0a0613");
         ctx.strokeStyle="#27e8ff44";ctx.setLineDash([8,12]);ctx.lineWidth=3;
         ctx.beginPath();ctx.moveTo(W/2,30);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
         rect(14,py,PW,PH,TEAMS[tmSel].c);
-        rect(ax,ay,PW,PH,opp.c);
+        rect(ax,ay,PW,PH,TEAMS[oppIdx].c);
         rect(bx-6,by-6,12,12,"#ffd23e");
-        // scoreboard
         px_txt(TEAMS[tmSel].n+" "+pPts,W/2-44,20,8,TEAMS[tmSel].c,"right");
         px_txt(pPts+"-"+aPts,W/2,20,9,"#fff");
-        px_txt(aPts+" "+opp.n,W/2+44,20,8,opp.c,"left");
+        px_txt(aPts+" "+TEAMS[oppIdx].n,W/2+44,20,8,TEAMS[oppIdx].c,"left");
         px_txt("SERIES "+sYou+"-"+sOpp+"  •  "+(ROUNDS[round]||""),W/2,H-8,7,"#9b8fc7");
-        if(!served && state==="play") px_txt("PRESS A TO SERVE",W/2,H/2-30,9,"#46ff9c");
-        if(state==="result"){
-          ctx.save();ctx.globalAlpha=.85;rect(0,0,W,H,"#02030f");ctx.restore();
-          px_txt(win?"SERIES WON!":"KNOCKED OUT",W/2,140,15,win?"#46ff9c":"#ff3ea5");
-          px_txt(sYou+" - "+sOpp,W/2,178,12,"#fff");
-          px_txt(win?"PRESS A TO CONTINUE":"PRESS A TO FINISH",W/2,228,8,"#9b8fc7");
-        }
-        if(state==="champion"){
-          ctx.save();ctx.globalAlpha=.9;rect(0,0,W,H,"#02030f");ctx.restore();
-          px_txt("PONG CUP CHAMPIONS!",W/2,120,13,"#ffd23e");
-          ctx.font="44px serif";ctx.textAlign="center";ctx.fillStyle="#fff";ctx.fillText("🏆",W/2,185);
-          px_txt(TEAMS[tmSel].n,W/2,225,11,TEAMS[tmSel].c);
-          px_txt("PRESS A",W/2,262,9,"#46ff9c");
-        }
+        if(!served) px_txt("PRESS A TO SERVE",W/2,H/2-30,9,"#46ff9c");
       }};
   });
 

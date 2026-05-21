@@ -1374,9 +1374,9 @@
   reg("pong","Up/Down (or D-pad) to move your paddle. First to 3 wins. Every return scores; sneaking one past the CPU is a big bonus and a point. Lose 3 points first and the match is over.",
   function(){
     var PH=66, PW=10, py=H/2-PH/2, ax=W-24, ay=H/2-PH/2;
-    var bx=W/2,by=H/2,bvx=-230,bvy=110, rallies=0, you=0, cpu=0;
-    function serve(dx){ bx=W/2;by=H/2; var sp=250+rallies*7;
-      bvx=dx*sp; bvy=rnd(-150,150); }
+    var bx=W/2,by=H/2,bvx=-230,bvy=60, rallies=0, you=0, cpu=0;
+    function serve(){ bx=W/2;by=H/2; var sp=230+rallies*6;
+      bvx=-sp; bvy=rnd(-0.3,0.3)*sp; }
     return { score:0, over:false,
       update:function(dt){
         if(IN.held.up)   py-=330*dt;
@@ -1395,8 +1395,8 @@
           bvy+=((by-(ay+PH/2))/(PH/2))*170;
         }
         bvy=Math.max(-360,Math.min(360,bvy));
-        if(bx<0){ cpu++; if(cpu>=3){ this.over=true; return; } serve(1); }
-        if(bx>W){ you++; this.score+=120; rallies++; if(you>=3){ this.score+=300; this.over=true; return; } serve(-1); }
+        if(bx<0){ cpu++; if(cpu>=3){ this.over=true; return; } serve(); }
+        if(bx>W){ you++; this.score+=120; rallies++; if(you>=3){ this.score+=300; this.over=true; return; } serve(); }
       },
       draw:function(){
         clear("#02030f","#0a0613");
@@ -2084,7 +2084,7 @@
     var sYou=0, sOpp=0, pPts=0, aPts=0, win=false;
     var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false;
     function aiSpd(){ return 250+round*38; }
-    function serve(dx){ bx=W/2; by=H/2; var sp=230+round*12+rallies*6; bvx=dx*sp; bvy=rnd(-150,150); served=true; }
+    function serve(){ bx=W/2; by=H/2; var sp=210+round*8+rallies*5; bvx=-sp; bvy=rnd(-0.3,0.3)*sp; served=true; }
     function newGame(){ pPts=0; aPts=0; py=H/2-PH/2; ay=H/2-PH/2; served=false; bvx=0; bvy=0; bx=W/2; by=H/2; rallies=0; }
     function buildWinners(arr,pmi,forced){
       var w=[];
@@ -2152,7 +2152,7 @@
         if(state==="result"){ if(IN.edge.action) this.over=true; return; }
         if(state==="champion"){ if(IN.edge.action) this.over=true; return; }
         // ---- play ----
-        if(!served){ if(IN.edge.action) serve(Math.random()<0.5?-1:1); return; }
+        if(!served){ if(IN.edge.action) serve(); return; }
         if(IN.held.up)   py-=340*dt;
         if(IN.held.down) py+=340*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
@@ -2173,7 +2173,7 @@
         if(scored){
           if(pPts>=GP){ sYou++; if(sYou>=NEED){ win=true; advanceWin(); } else newGame(); }
           else if(aPts>=GP){ sOpp++; if(sOpp>=NEED){ win=false; loseOut(); } else newGame(); }
-          else serve(bx<0?1:-1);
+          else serve();
         }
       },
       draw:function(){

@@ -27,6 +27,7 @@
     { n: "Word Rush", e: "🔤", c: ["New Releases", "Trending"], r: 4.7, plays: "390K", badge: "new" },
     { n: "Map Tap", e: "🌍", c: ["New Releases", "Trending"], r: 4.5, plays: "210K", badge: "new" },
     { n: "Turret Survivors", e: "🤖", c: ["New Releases", "Trending", "Competitive"], r: 4.9, plays: "470K", badge: "hot" },
+    { n: "Soccer Stars", e: "⚽", c: ["New Releases", "Multiplayer", "Competitive"], r: 4.8, plays: "560K", badge: "new" },
   ];
 
   const exclusives = [

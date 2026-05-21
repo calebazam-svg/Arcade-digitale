@@ -117,11 +117,12 @@
     "Spend 100 Million":"spend",   "Mystery Machine":"mystery",
     "Claw Machine":"claw",         "Neon Pong":"pong",
     "Tower Siege":"tower",         "Word Rush":"wordle",
-    "Map Tap":"maptap",            "Turret Survivors":"survivor"
+    "Map Tap":"maptap",            "Turret Survivors":"survivor",
+    "Soccer Stars":"soccer"
   };
   var POOL = ["snake","muncher","runner","rocket","dungeon","quest","dodger",
               "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend",
-              "claw","pong","tower","wordle","maptap","survivor"];
+              "claw","pong","tower","wordle","maptap","survivor","soccer"];
 
   /* ── Shared pseudo-3D kart racer (Mario-Kart-style) ──────── */
   function makeRacer(cfg){
@@ -1836,6 +1837,233 @@
             for(var w=0;w<words.length;w++) px_txt(words[w],bx+bw/2,by+62+w*14,7,"#9b8fc7");
           }
           px_txt("◄ ►  •  A: SELECT",W/2,H-18,8,"#9b8fc7");
+        }
+      }};
+  });
+
+  /* 22. Soccer Stars (Soccer-Legends-style 1v1 knockout tournament) */
+  reg("soccer","Soccer-Legends-style 1v1! Left/Right run, Up to jump & header, A to kick. Pick a difficulty and your team, then fight through a 3-round knockout — each match is 90 seconds. Outscore the CPU to advance; win the final to lift the trophy.",
+  function(){
+    var GY=300, RB=22, RBALL=10, GTOP=196, GL=12;
+    var TEAMS=[
+      {n:"CRIMSON",c:"#ff3ea5"},{n:"AZURE",c:"#27e8ff"},{n:"LIME",c:"#46ff9c"},
+      {n:"GOLD",c:"#ffd23e"},{n:"VIOLET",c:"#9b6bff"},{n:"ORANGE",c:"#ff8a3e"},
+      {n:"TEAL",c:"#2ad6c0"},{n:"ROSE",c:"#ff6b9b"}
+    ];
+    var DIFFS=[
+      {n:"EASY",   asp:120, akick:320, react:0.34},
+      {n:"NORMAL", asp:170, akick:390, react:0.16},
+      {n:"HARD",   asp:215, akick:450, react:0.05}
+    ];
+    var state="diff", diSel=1, tmSel=0, round=1, opp=null, diff=DIFFS[1];
+    var clock=90, ps=0, as=0, golden=false, msg="", msgT=0, win=false, tally=0;
+    var P, A, ball, pauseT=0;
+    function resetPos(){
+      P={x:W*0.32,y:GY-RB,vx:0,vy:0,g:true,face:1,kc:0};
+      A={x:W*0.68,y:GY-RB,vx:0,vy:0,g:true,face:-1,kc:0,tmr:0,tx:W/2};
+      ball={x:W/2,y:120,vx:rnd(-40,40),vy:0};
+    }
+    function newMatch(){
+      var pool=[]; for(var i=0;i<TEAMS.length;i++) if(i!==tmSel) pool.push(TEAMS[i]);
+      opp=pool[ri(0,pool.length-1)];
+      clock=90; ps=0; as=0; golden=false; resetPos();
+    }
+    function bump(pl){
+      var dx=ball.x-pl.x, dy=ball.y-pl.y, d=Math.hypot(dx,dy)||1;
+      if(d<RB+RBALL){
+        var nx=dx/d, ny=dy/d, ov=RB+RBALL-d;
+        ball.x+=nx*ov; ball.y+=ny*ov;
+        ball.vx=nx*250 + pl.vx*0.85;
+        ball.vy=ny*250 + pl.vy*0.5 - 70;
+      }
+    }
+    function kick(pl,dir,pow){
+      var dx=ball.x-pl.x, dy=ball.y-pl.y, d=Math.hypot(dx,dy)||1;
+      if(d<RB+RBALL+16){ ball.vx=dir*pow + ball.vx*0.2; ball.vy=-280 - Math.random()*60; return true; }
+      return false;
+    }
+    function physics(dt){
+      // ---- player ----
+      P.vx=0;
+      if(IN.held.left){ P.vx=-210; P.face=-1; }
+      if(IN.held.right){ P.vx=210; P.face=1; }
+      if(IN.held.up && P.g){ P.vy=-560; P.g=false; }
+      P.kc-=dt;
+      if(IN.edge.action && P.kc<=0){ if(kick(P,1,440)) P.kc=0.3; }
+      // ---- AI ----
+      A.tmr-=dt;
+      if(A.tmr<=0){ A.tmr=diff.react; A.tx=ball.x+ball.vx*0.12; }
+      A.vx=0;
+      if(A.x < A.tx-8){ A.vx=diff.asp; A.face=1; }
+      else if(A.x > A.tx+8){ A.vx=-diff.asp; A.face=-1; }
+      if(A.g && ball.y < A.y-30 && Math.abs(ball.x-A.x)<70) { A.vy=-540; A.g=false; }
+      A.kc-=dt;
+      if(A.kc<=0 && Math.abs(ball.x-A.x)<RB+RBALL+10){ if(kick(A,-1,diff.akick)) A.kc=0.3; }
+      // integrate players
+      [P,A].forEach(function(pl){
+        pl.vy+=1500*dt; pl.x+=pl.vx*dt; pl.y+=pl.vy*dt;
+        if(pl.y>=GY-RB){ pl.y=GY-RB; pl.vy=0; pl.g=true; }
+        pl.x=Math.max(RB,Math.min(W-RB,pl.x));
+      });
+      // ball
+      ball.vy+=900*dt; ball.x+=ball.vx*dt; ball.y+=ball.vy*dt;
+      bump(P); bump(A);
+      // ground
+      if(ball.y>GY-RBALL){ ball.y=GY-RBALL; ball.vy*=-0.55; ball.vx*=0.86; if(Math.abs(ball.vy)<40)ball.vy=0; }
+      // ceiling
+      if(ball.y<RBALL){ ball.y=RBALL; ball.vy*=-0.6; }
+      // goals / side walls
+      if(ball.x-RBALL<GL){
+        if(ball.y>GTOP) return "A";          // CPU scores in left goal
+        ball.x=GL+RBALL; ball.vx*=-0.7;
+      }
+      if(ball.x+RBALL>W-GL){
+        if(ball.y>GTOP) return "P";          // player scores in right goal
+        ball.x=W-GL-RBALL; ball.vx*=-0.7;
+      }
+      return "";
+    }
+    function drawField(){
+      var g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,"#0a1a30");g.addColorStop(1,"#06120a");
+      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      rect(0,GY,W,H-GY,"#13351f");
+      ctx.strokeStyle="#46ff9c33";ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(0,GY);ctx.lineTo(W,GY);ctx.stroke();
+      ctx.setLineDash([6,10]);ctx.beginPath();ctx.moveTo(W/2,GY);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+      // goals
+      function goal(side){
+        var x0=side<0?0:W-GL;
+        ctx.strokeStyle="#f3ecff";ctx.lineWidth=3;
+        ctx.strokeRect(x0,GTOP,GL,GY-GTOP);
+        ctx.strokeStyle="#ffffff33";ctx.lineWidth=1;
+        for(var yy=GTOP;yy<GY;yy+=8){ctx.beginPath();ctx.moveTo(x0,yy);ctx.lineTo(x0+GL,yy);ctx.stroke();}
+      }
+      goal(-1); goal(1);
+    }
+    function drawPlayer(pl,col){
+      ctx.save();ctx.globalAlpha=.3;ctx.fillStyle="#000";
+      ctx.beginPath();ctx.ellipse(pl.x,GY-2,18,5,0,0,7);ctx.fill();ctx.restore();
+      rect(pl.x-4,pl.y+8,3,RB-8,"#1a1a1a");          // legs
+      rect(pl.x+2,pl.y+8,3,RB-8,"#1a1a1a");
+      rect(pl.x-12,pl.y-10,24,24,col);               // body
+      ctx.fillStyle=col;ctx.beginPath();ctx.arc(pl.x,pl.y-20,12,0,7);ctx.fill();  // head
+      ctx.fillStyle="#0a0613";ctx.beginPath();ctx.arc(pl.x+pl.face*5,pl.y-22,2.5,0,7);ctx.fill();
+    }
+    return { score:0, over:false,
+      update:function(dt){
+        this.score=tally;
+        if(msgT>0)msgT-=dt;
+        if(state==="diff"){
+          if(IN.edge.left)  diSel=(diSel+2)%3;
+          if(IN.edge.right) diSel=(diSel+1)%3;
+          if(IN.edge.action){ diff=DIFFS[diSel]; state="team"; }
+          return;
+        }
+        if(state==="team"){
+          if(IN.edge.left)  tmSel=(tmSel+7)%8;
+          if(IN.edge.right) tmSel=(tmSel+1)%8;
+          if(IN.edge.up)    tmSel=(tmSel+4)%8;
+          if(IN.edge.down)  tmSel=(tmSel+4)%8;
+          if(IN.edge.action){ newMatch(); state="bracket"; }
+          return;
+        }
+        if(state==="bracket"){
+          if(IN.edge.action){ state="play"; }
+          return;
+        }
+        if(state==="result"){
+          if(IN.edge.action){
+            if(win){ if(round>=3){ tally+=600; state="champion"; } else { round++; newMatch(); state="bracket"; } }
+            else { this.over=true; }
+          }
+          return;
+        }
+        if(state==="champion"){
+          if(IN.edge.action){ this.over=true; }
+          return;
+        }
+        if(state==="goal"){
+          pauseT-=dt; if(pauseT<=0){ resetPos(); state="play"; }
+          return;
+        }
+        // ---- play ----
+        if(!golden){ clock-=dt; if(clock<0)clock=0; }
+        var who=physics(dt);
+        if(who==="P"){ ps++; tally+=30; msg="GOAL!"; msgT=1.4; pauseT=1.3; state="goal";
+          if(golden){ win=true; tally+=200; state="result"; } }
+        else if(who==="A"){ as++; msg="CPU SCORES"; msgT=1.4; pauseT=1.3; state="goal";
+          if(golden){ win=false; state="result"; } }
+        if(state==="play" && clock<=0){
+          if(ps>as){ win=true; tally+=200; state="result"; }
+          else if(as>ps){ win=false; state="result"; }
+          else { golden=true; msg="GOLDEN GOAL"; msgT=2.0; }
+        }
+      },
+      draw:function(){
+        if(state==="diff"){
+          clear("#0a1a30","#06120a");
+          px_txt("SOCCER STARS",W/2,60,16,"#46ff9c");
+          px_txt("SELECT DIFFICULTY",W/2,110,9,"#9b8fc7");
+          for(var i=0;i<3;i++){
+            var bw=120,bx=20+i*(bw+14),by=150,sl=i===diSel;
+            rect(bx,by,bw,90,sl?"#1a3a20":"#160a26");
+            ctx.strokeStyle=sl?"#46ff9c":"#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,90);
+            px_txt(DIFFS[i].n,bx+bw/2,by+50,11,sl?"#fff":"#9b8fc7");
+          }
+          px_txt("◄ ►  •  A: CONFIRM",W/2,H-26,8,"#9b8fc7");
+          return;
+        }
+        if(state==="team"){
+          clear("#0a1a30","#06120a");
+          px_txt("SELECT YOUR TEAM",W/2,40,11,"#46ff9c");
+          for(var i=0;i<8;i++){
+            var c=i%4,r=Math.floor(i/4),bw=104,bh=92;
+            var bx=12+c*(bw+8),by=70+r*(bh+10),sl=i===tmSel;
+            rect(bx,by,bw,bh,sl?"#1a2350":"#160a26");
+            ctx.strokeStyle=sl?"#27e8ff":"#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+            ctx.fillStyle=TEAMS[i].c;ctx.beginPath();ctx.arc(bx+bw/2,by+34,18,0,7);ctx.fill();
+            px_txt(TEAMS[i].n,bx+bw/2,by+72,7,sl?"#fff":"#9b8fc7");
+          }
+          px_txt("◄ ► ▲ ▼  •  A: CONFIRM",W/2,H-16,8,"#9b8fc7");
+          return;
+        }
+        if(state==="bracket"){
+          clear("#0a1a30","#06120a");
+          var rn=["","QUARTER-FINAL","SEMI-FINAL","FINAL"][round]||("ROUND "+round);
+          px_txt(rn,W/2,70,12,"#ffd23e");
+          ctx.fillStyle=TEAMS[tmSel].c;ctx.beginPath();ctx.arc(W/2-90,150,26,0,7);ctx.fill();
+          ctx.fillStyle=opp.c;ctx.beginPath();ctx.arc(W/2+90,150,26,0,7);ctx.fill();
+          px_txt(TEAMS[tmSel].n,W/2-90,200,8,"#fff");
+          px_txt("VS",W/2,156,12,"#ff3ea5");
+          px_txt(opp.n,W/2+90,200,8,"#fff");
+          px_txt("90 SECONDS  ·  "+diff.n,W/2,240,8,"#9b8fc7");
+          px_txt("PRESS A TO KICK OFF",W/2,H-30,9,"#46ff9c");
+          return;
+        }
+        // play / goal / result / champion all show the pitch
+        drawField();
+        drawPlayer(P,TEAMS[tmSel].c);
+        drawPlayer(A,opp.c);
+        ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ball.x,ball.y,RBALL,0,7);ctx.fill();
+        ctx.fillStyle="#0a0613";ctx.beginPath();ctx.arc(ball.x,ball.y,3,0,7);ctx.fill();
+        // scoreboard
+        rect(W/2-70,4,140,22,"#02030f");
+        px_txt(TEAMS[tmSel].n.slice(0,4)+" "+ps+"-"+as+" "+opp.n.slice(0,4),W/2,19,8,"#f3ecff");
+        px_txt(golden?"GG":Math.ceil(clock)+"\"",W/2,40,9,golden?"#ff3ea5":"#ffd23e");
+        if(msgT>0) px_txt(msg,W/2,H/2-30,14,msg.indexOf("CPU")>=0?"#ff8a8a":"#ffd23e");
+        if(state==="result"){
+          ctx.save();ctx.globalAlpha=.85;rect(0,0,W,H,"#02030f");ctx.restore();
+          px_txt(win?"YOU WIN!":"ELIMINATED",W/2,140,16,win?"#46ff9c":"#ff3ea5");
+          px_txt(ps+" - "+as,W/2,180,12,"#fff");
+          px_txt(win?"PRESS A TO CONTINUE":"PRESS A TO FINISH",W/2,230,8,"#9b8fc7");
+        }
+        if(state==="champion"){
+          ctx.save();ctx.globalAlpha=.9;rect(0,0,W,H,"#02030f");ctx.restore();
+          px_txt("CHAMPIONS!",W/2,120,18,"#ffd23e");
+          ctx.font="44px serif";ctx.textAlign="center";ctx.fillStyle="#fff";ctx.fillText("🏆",W/2,185);
+          px_txt(TEAMS[tmSel].n+" WIN THE CUP",W/2,225,9,TEAMS[tmSel].c);
+          px_txt("PRESS A",W/2,265,9,"#46ff9c");
         }
       }};
   });

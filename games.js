@@ -47,7 +47,7 @@
   });
 
   /* ── DOM ─────────────────────────────────────────────────── */
-  var modal, cv, ctx, elScore, elBest, elTitle, domBound = false;
+  var modal, cv, ctx, elScore, elBest, elTitle, lbStartEl, lbEndEl, domBound = false;
   function bindDOM() {
     if (domBound) return;
     domBound = true;
@@ -75,6 +75,10 @@
       IN.py = (e.clientY - r.top)  * H / r.height;
       IN.pclick = 1; IN.edge.action = 1;
     });
+    lbStartEl = document.createElement("div");
+    document.getElementById("ovStart").insertBefore(lbStartEl, document.getElementById("ovBtn"));
+    lbEndEl = document.createElement("div");
+    document.getElementById("ovEnd").insertBefore(lbEndEl, document.getElementById("ovRetry"));
   }
 
   /* ── Helpers ─────────────────────────────────────────────── */
@@ -943,9 +947,10 @@
       {n:"SMG",     cd:0.12, dmg:1, tol:0.14, multi:1, cost:220},
       {n:"SHOTGUN", cd:0.65, dmg:1, tol:0.34, multi:3, cost:380},
       {n:"RIFLE",   cd:0.50, dmg:3, tol:0.08, multi:1, cost:650},
-      {n:"PLASMA",  cd:0.20, dmg:4, tol:0.18, multi:1, cost:1200}
+      {n:"PLASMA",  cd:0.20, dmg:4, tol:0.18, multi:1, cost:1200},
+      {n:"MINIGUN", cd:0.05, dmg:2, tol:0.18, multi:1, cost:2000}
     ];
-    var owned=[true,false,false,false,false], eq=0, creds=0;
+    var owned=[true,false,false,false,false,false], eq=0, creds=0;
     var aim=0, en=[], level=1, wave=1, cd=0, flash=0, banner="LEVEL 1", bannerT=1.6;
     var state="play", sel=0, SHOP_N=WEAPONS.length+1;
     function spawn(){
@@ -1066,25 +1071,26 @@
           ctx.save();ctx.globalAlpha=.85;rect(0,0,W,H,"#02030f");ctx.restore();
           px_txt("ARMORY  —  LEVEL "+level+" CLEARED",W/2,30,11,"#ffd23e");
           px_txt("CREDS: $"+creds,W/2,52,8,"#27e8ff");
+          var slot=(W-12)/SHOP_N, bh=132, by=78;
           for(var i=0;i<SHOP_N;i++){
-            var bw=84, bh=120, gx=8+i*((W-16)/SHOP_N), bx=gx+((W-16)/SHOP_N-bw)/2, by=80;
+            var bx=6+i*slot, bw=slot-4, cxm=bx+bw/2;
             var sl=i===sel;
             if(i===SHOP_N-1){
               rect(bx,by,bw,bh,sl?"#1a3a20":"#10241a");
               ctx.strokeStyle=sl?"#46ff9c":"#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
-              px_txt("FIGHT",bx+bw/2,by+bh/2-6,9,sl?"#fff":"#46ff9c");
-              px_txt("LV "+(level+1),bx+bw/2,by+bh/2+10,7,"#9b8fc7");
+              px_txt("FIGHT",cxm,by+bh/2-6,8,sl?"#fff":"#46ff9c");
+              px_txt("LV"+(level+1),cxm,by+bh/2+10,6,"#9b8fc7");
             } else {
               var w=WEAPONS[i];
               var have=owned[i], can=have||creds>=w.cost;
               rect(bx,by,bw,bh,sl?"#1a2350":"#160a26");
               ctx.strokeStyle=sl?"#27e8ff":(have?"#46ff9c":"#3a2a6b");ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
-              px_txt(w.n,bx+bw/2,by+18,8,can?"#fff":"#5a4a7a");
-              px_txt("DMG "+w.dmg,bx+bw/2,by+40,6,"#ff8a8a");
-              px_txt("CD "+w.cd.toFixed(2),bx+bw/2,by+54,6,"#27e8ff");
-              if(w.multi>1) px_txt("x"+w.multi,bx+bw/2,by+68,6,"#ffd23e");
-              if(have) px_txt(eq===i?"EQUIPPED":"OWNED",bx+bw/2,by+92,7,eq===i?"#46ff9c":"#9b8fc7");
-              else px_txt("$"+w.cost,bx+bw/2,by+92,8,can?"#ffd23e":"#ff8a8a");
+              px_txt(w.n,cxm,by+16,6,can?"#fff":"#5a4a7a");
+              px_txt("DMG"+w.dmg,cxm,by+40,6,"#ff8a8a");
+              px_txt(w.cd.toFixed(2),cxm,by+54,6,"#27e8ff");
+              if(w.multi>1) px_txt("x"+w.multi,cxm,by+68,6,"#ffd23e");
+              if(have) px_txt(eq===i?"EQUIP":"OWNED",cxm,by+96,6,eq===i?"#46ff9c":"#9b8fc7");
+              else px_txt("$"+w.cost,cxm,by+96,7,can?"#ffd23e":"#ff8a8a");
             }
           }
           px_txt("◄ ►  •  A: BUY / EQUIP / FIGHT",W/2,H-18,8,"#9b8fc7");
@@ -2267,6 +2273,7 @@
     if(sc>best){ saveBest(id,sc); elBest.textContent=sc; best=sc; }
     var t="Score: "+sc; if(sc>=best&&sc>0)t+="  ★ NEW BEST!";
     document.getElementById("ovFinal").textContent=t;
+    if(lbEndEl) lbEndEl.innerHTML = lbHTML(id, recordScore(id, sc));
     curGame=null; show("ovEnd");
   }
   function closeModal() {
@@ -2277,6 +2284,50 @@
   }
   function loadBest(id){ return +(localStorage.getItem("da_b_"+id)||0); }
   function saveBest(id,n){ try{ localStorage.setItem("da_b_"+id,n); }catch(e){} }
+
+  /* ── Per-game leaderboards (local) ── */
+  function lbKey(id){ return "da_lb_"+id; }
+  function saveLB(id,a){ try{ localStorage.setItem(lbKey(id), JSON.stringify(a)); }catch(e){} }
+  function seedLB(id){
+    var names=["NeonViper","RetroQueen","GhostByte","ArcadeApe","SynthRider",
+      "PixelKnight","BitWizard","TurboNyx","MegaFox","VoltKid","DiscoDuck","ZapLord"];
+    var seed=2166136261;
+    for(var i=0;i<id.length;i++){ seed^=id.charCodeAt(i); seed=(seed*16777619)>>>0; }
+    function rng(){ seed=(seed*1103515245+12345)>>>0; return seed/4294967296; }
+    var hi=Math.floor(500+rng()*2500), out=[];
+    for(var k=0;k<6;k++){
+      out.push({ n:names[Math.floor(rng()*names.length)]+(10+Math.floor(rng()*89)),
+                 s:Math.max(20,Math.floor(hi*(1-k*0.14)*(0.9+rng()*0.18))) });
+    }
+    out.sort(function(a,b){return b.s-a.s;});
+    return out;
+  }
+  function loadLB(id){
+    try{ var s=localStorage.getItem(lbKey(id)); if(s){ var a=JSON.parse(s); if(a&&a.length) return a; } }catch(e){}
+    var seeded=seedLB(id); saveLB(id,seeded); return seeded;
+  }
+  function recordScore(id,score){
+    var lb=loadLB(id), you=null, i;
+    for(i=0;i<lb.length;i++) if(lb[i].you){ you=lb[i]; break; }
+    if(!you){ you={n:"YOU",s:0,you:1}; lb.push(you); }
+    if(score>you.s) you.s=score;
+    lb.sort(function(a,b){return b.s-a.s;});
+    var yi=lb.indexOf(you);
+    if(lb.length>8){ if(yi>=8){ lb=lb.slice(0,7); lb.push(you); } else lb=lb.slice(0,8); }
+    saveLB(id,lb); return lb;
+  }
+  function fmtN(n){ return (n|0).toLocaleString(); }
+  function lbHTML(id,pre){
+    var lb=pre||loadLB(id), show=lb.slice(0,5), you=null, yi=-1, i;
+    for(i=0;i<lb.length;i++) if(lb[i].you){ you=lb[i]; yi=i; break; }
+    if(you && yi>=5){ show=lb.slice(0,4); show.push(you); }
+    var rows="";
+    for(i=0;i<show.length;i++){ var e=show[i], rank=lb.indexOf(e)+1;
+      rows+='<li'+(e.you?' class="you"':'')+'><span class="r">#'+rank+'</span>'+
+            '<span class="n">'+e.n+'</span><span class="s">'+fmtN(e.s)+'</span></li>';
+    }
+    return '<div class="da-lb"><h4>TOP SCORES</h4><ol>'+rows+'</ol></div>';
+  }
   function hide(id){ document.getElementById(id).classList.add("hidden"); }
   function show(id){ document.getElementById(id).classList.remove("hidden"); }
 
@@ -2288,6 +2339,7 @@
     elBest.textContent  = loadBest(curId==="mystery"?"mystery":curId);
     document.getElementById("ovTitle").textContent = name;
     document.getElementById("ovHow").textContent   = HOWTO[curId] || "Use the controls below.";
+    if(lbStartEl) lbStartEl.innerHTML = lbHTML(curId);
     show("ovStart"); hide("ovEnd");
     if(ctx){ clear("#0a0613","#150c2b"); px_txt("READY?",W/2,H/2-10,16,"#27e8ff"); }
     modal.classList.add("open"); modal.setAttribute("aria-hidden","false");

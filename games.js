@@ -2132,25 +2132,26 @@
     // two-sided bracket position for round r (0..4), global index k
     function posOf(r,k){
       var colW=W/9, top=56, bot=H-10, rangeH=bot-top;
-      if(r===4){ var N0=1,i0=0,slot=4; var ch0=16; var cy0=top+rangeH/2;
-        return {x:slot*colW+1,y:cy0-ch0/2,w:colW-3,h:ch0,cx:slot*colW+1+(colW-3)/2,cy:cy0}; }
+      if(r===4){ var ch0=18, cy0=top+rangeH/2, slot4=4;
+        return {x:slot4*colW+1,y:cy0-ch0/2,w:colW-3,h:ch0,cx:slot4*colW+1+(colW-3)/2,cy:cy0}; }
       var per=[8,4,2,1][r], side=k<per?0:1, i=side===0?k:k-per, N=per;
       var slot=side===0?[0,1,2,3][r]:[8,7,6,5][r];
-      var chH=Math.min(16,rangeH/N-2), cy=top+(i+0.5)*rangeH/N, x=slot*colW+1, w=colW-3;
+      var chH=Math.min(18,rangeH/N-2), cy=top+(i+0.5)*rangeH/N, x=slot*colW+1, w=colW-3;
       return {x:x,y:cy-chH/2,w:w,h:chH,cx:x+w/2,cy:cy};
     }
     function teamChip(c,idx,ol,score){
       var t=TEAMS[idx];
       rect(c.x,c.y,c.w,c.h, idx===tmSel?"#16233f":"#100a1c");
-      ctx.fillStyle=t.c; ctx.fillRect(c.x,c.y,3,c.h);
-      px_txt(t.n.slice(0,4), c.x+5, c.y+c.h-4, 5, idx===tmSel?"#fff":"#cdbff0","left");
-      if(score) px_txt(score, c.x+c.w-2, c.y+c.h-4, 5, "#ffd23e","right");
+      ctx.fillStyle=t.c; ctx.fillRect(c.x,c.y,4,c.h);
+      var nm = score ? t.n.slice(0,4) : t.n.slice(0,6);
+      px_txt(nm, c.x+8, c.y+c.h-5, score?6:7, idx===tmSel?"#fff":"#e6dcff","left");
+      if(score) px_txt(score, c.x+c.w-3, c.y+c.h-5, 5, "#ffd23e","right");
       if(ol){ ctx.strokeStyle=ol;ctx.lineWidth=1.5;ctx.strokeRect(c.x,c.y,c.w,c.h); }
     }
     function drawBracket(){
       var colW=W/9, labL=["R16","QF","SF","F"];
-      for(var c=0;c<4;c++){ px_txt(labL[c],c*colW+colW/2,50,5,"#5a7a9a"); px_txt(labL[c],(8-c)*colW+colW/2,50,5,"#5a7a9a"); }
-      px_txt("CUP",4*colW+colW/2,50,5,"#ffd23e");
+      for(var c=0;c<4;c++){ px_txt(labL[c],c*colW+colW/2,50,6,"#7da3c7"); px_txt(labL[c],(8-c)*colW+colW/2,50,6,"#7da3c7"); }
+      px_txt("CUP",4*colW+colW/2,50,6,"#ffd23e");
       // connectors (child to its two parents)
       ctx.strokeStyle="rgba(155,107,255,.28)";ctx.lineWidth=1;
       for(var r=1;r<roundTeams.length;r++){

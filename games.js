@@ -944,11 +944,11 @@
     var HFOV=Math.PI/3, WPL=4;
     var WEAPONS=[
       {n:"PISTOL",  cd:0.30, dmg:1, tol:0.14, multi:1, cost:0},
-      {n:"SMG",     cd:0.12, dmg:1, tol:0.14, multi:1, cost:220},
-      {n:"SHOTGUN", cd:0.65, dmg:1, tol:0.34, multi:3, cost:380},
-      {n:"RIFLE",   cd:0.50, dmg:3, tol:0.08, multi:1, cost:650},
-      {n:"PLASMA",  cd:0.20, dmg:4, tol:0.18, multi:1, cost:1200},
-      {n:"MINIGUN", cd:0.05, dmg:2, tol:0.18, multi:1, cost:2000}
+      {n:"SMG",     cd:0.12, dmg:1, tol:0.14, multi:1, cost:600},
+      {n:"SHOTGUN", cd:0.65, dmg:1, tol:0.34, multi:3, cost:1100},
+      {n:"RIFLE",   cd:0.50, dmg:3, tol:0.08, multi:1, cost:1900},
+      {n:"PLASMA",  cd:0.20, dmg:4, tol:0.18, multi:1, cost:3200},
+      {n:"MINIGUN", cd:0.05, dmg:2, tol:0.18, multi:1, cost:5000}
     ];
     var owned=[true,false,false,false,false,false], eq=0, creds=0;
     var aim=0, en=[], level=1, wave=1, cd=0, flash=0, banner="LEVEL 1", bannerT=1.6;
@@ -2086,60 +2086,87 @@
     ];
     var ROUNDS=["","ROUND OF 16","QUARTER-FINAL","SEMI-FINAL","FINAL"];
     var state="team", tmSel=0, round=1, tally=0;
-    var roundTeams=[], playerSlot=0, oppIdx=0, champIdx=-1;
+    var roundTeams=[], seriesResults=[], playerSlot=0, oppIdx=0, champIdx=-1;
     var sYou=0, sOpp=0, pPts=0, aPts=0, win=false;
     var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false;
     function aiSpd(){ return 250+round*38; }
     function serve(){ bx=W/2; by=H/2; var sp=210+round*8+rallies*5; bvx=-sp; bvy=rnd(-0.3,0.3)*sp; served=true; }
     function newGame(){ pPts=0; aPts=0; py=H/2-PH/2; ay=H/2-PH/2; served=false; bvx=0; bvy=0; bx=W/2; by=H/2; rallies=0; }
-    function buildWinners(arr,pmi,forced){
-      var w=[];
+    // resolve a round: returns winners + per-match [winnerGames, loserGames]
+    function resolveRound(arr,pmi,forced,gw,gl){
+      var wins=[], scs=[];
       for(var j=0;j*2<arr.length;j++){
         var a=arr[2*j], b=arr[2*j+1];
-        w.push(j===pmi?forced:(Math.random()<0.5?a:b));
+        if(j===pmi && pmi>=0){ wins.push(forced); scs.push([gw,gl]); }
+        else { wins.push(Math.random()<0.5?a:b); scs.push([4,ri(0,3)]); }
       }
-      return w;
+      return {w:wins, s:scs};
     }
     function newCup(){
       var others=[]; for(var i=0;i<16;i++) if(i!==tmSel) others.push(i);
       for(var s=others.length-1;s>0;s--){var t=ri(0,s),tmp=others[s];others[s]=others[t];others[t]=tmp;}
-      roundTeams=[[tmSel].concat(others)];
+      roundTeams=[[tmSel].concat(others)]; seriesResults=[];
       round=1; playerSlot=0; oppIdx=roundTeams[0][1]; champIdx=-1; sYou=0; sOpp=0; newGame();
     }
     function advanceWin(){
       tally+=200;
       var pmi=Math.floor(playerSlot/2);
-      roundTeams[round]=buildWinners(roundTeams[round-1],pmi,tmSel);
+      var r=resolveRound(roundTeams[round-1],pmi,tmSel,sYou,sOpp);
+      roundTeams[round]=r.w; seriesResults[round]=r.s;
       playerSlot=pmi;
       if(round>=4){ tally+=800; champIdx=tmSel; state="champion"; }
       else { round++; oppIdx=roundTeams[round-1][playerSlot^1]; sYou=0; sOpp=0; newGame(); state="bracketview"; }
     }
     function loseOut(){
       var pmi=Math.floor(playerSlot/2);
-      roundTeams[round]=buildWinners(roundTeams[round-1],pmi,oppIdx);
+      var r0=resolveRound(roundTeams[round-1],pmi,oppIdx,sOpp,sYou);
+      roundTeams[round]=r0.w; seriesResults[round]=r0.s;
       var r=round;
-      while(roundTeams[r].length>1){ roundTeams[r+1]=buildWinners(roundTeams[r],-1,-1); r++; }
+      while(roundTeams[r].length>1){
+        var rr=resolveRound(roundTeams[r],-1,-1,0,0);
+        roundTeams[r+1]=rr.w; seriesResults[r+1]=rr.s; r++;
+      }
       champIdx=roundTeams[r][0];
       state="result";
     }
-    function teamChip(x,y,w,h,idx,ol){
+    // two-sided bracket position for round r (0..4), global index k
+    function posOf(r,k){
+      var colW=W/9, top=56, bot=H-10, rangeH=bot-top;
+      if(r===4){ var N0=1,i0=0,slot=4; var ch0=16; var cy0=top+rangeH/2;
+        return {x:slot*colW+1,y:cy0-ch0/2,w:colW-3,h:ch0,cx:slot*colW+1+(colW-3)/2,cy:cy0}; }
+      var per=[8,4,2,1][r], side=k<per?0:1, i=side===0?k:k-per, N=per;
+      var slot=side===0?[0,1,2,3][r]:[8,7,6,5][r];
+      var chH=Math.min(16,rangeH/N-2), cy=top+(i+0.5)*rangeH/N, x=slot*colW+1, w=colW-3;
+      return {x:x,y:cy-chH/2,w:w,h:chH,cx:x+w/2,cy:cy};
+    }
+    function teamChip(c,idx,ol,score){
       var t=TEAMS[idx];
-      rect(x,y,w,h, idx===tmSel?"#1a2350":"#120a1e");
-      ctx.fillStyle=t.c; ctx.fillRect(x+2,y+2,h-4,h-4);
-      px_txt(t.n.slice(0,5), x+h+2, y+h-4, 5, idx===tmSel?"#fff":"#9b8fc7","left");
-      if(ol){ ctx.strokeStyle=ol;ctx.lineWidth=1;ctx.strokeRect(x,y,w,h); }
+      rect(c.x,c.y,c.w,c.h, idx===tmSel?"#16233f":"#100a1c");
+      ctx.fillStyle=t.c; ctx.fillRect(c.x,c.y,3,c.h);
+      px_txt(t.n.slice(0,4), c.x+5, c.y+c.h-4, 5, idx===tmSel?"#fff":"#cdbff0","left");
+      if(score) px_txt(score, c.x+c.w-2, c.y+c.h-4, 5, "#ffd23e","right");
+      if(ol){ ctx.strokeStyle=ol;ctx.lineWidth=1.5;ctx.strokeRect(c.x,c.y,c.w,c.h); }
     }
     function drawBracket(){
-      var top=46, bot=H-30, rangeH=bot-top, colN=5, colW=(W-8)/colN;
-      var labels=["R16","QF","SF","FIN","CUP"];
-      for(var c=0;c<colN;c++) px_txt(labels[c],4+c*colW+colW/2,42,5,"#5a7a9a");
-      for(var cc=0;cc<roundTeams.length;cc++){
-        var arr=roundTeams[cc], N=arr.length, x=4+cc*colW, w=colW-6, chH=Math.min(15,rangeH/N-2);
-        for(var i=0;i<N;i++){
-          var ym=top+(i+0.5)*rangeH/N-chH/2;
-          var champ=(cc===4&&N===1);
-          var ol=arr[i]===tmSel?"#27e8ff":(champ?"#ffd23e":null);
-          teamChip(x,ym,w,chH,arr[i],ol);
+      var colW=W/9, labL=["R16","QF","SF","F"];
+      for(var c=0;c<4;c++){ px_txt(labL[c],c*colW+colW/2,50,5,"#5a7a9a"); px_txt(labL[c],(8-c)*colW+colW/2,50,5,"#5a7a9a"); }
+      px_txt("CUP",4*colW+colW/2,50,5,"#ffd23e");
+      // connectors (child to its two parents)
+      ctx.strokeStyle="rgba(155,107,255,.28)";ctx.lineWidth=1;
+      for(var r=1;r<roundTeams.length;r++){
+        for(var k=0;k<roundTeams[r].length;k++){
+          var cc=posOf(r,k), pa=posOf(r-1,2*k), pb=posOf(r-1,2*k+1);
+          ctx.beginPath();ctx.moveTo(cc.cx,cc.cy);ctx.lineTo(pa.cx,pa.cy);
+          ctx.moveTo(cc.cx,cc.cy);ctx.lineTo(pb.cx,pb.cy);ctx.stroke();
+        }
+      }
+      // chips
+      for(var rr=0;rr<roundTeams.length;rr++){
+        for(var kk=0;kk<roundTeams[rr].length;kk++){
+          var co=posOf(rr,kk), idx=roundTeams[rr][kk];
+          var ol=idx===tmSel?"#27e8ff":(rr===4?"#ffd23e":null);
+          var sc=(rr>=1&&seriesResults[rr])?(seriesResults[rr][kk][0]+"-"+seriesResults[rr][kk][1]):"";
+          teamChip(co,idx,ol,sc);
         }
       }
     }
@@ -2273,7 +2300,7 @@
     if(sc>best){ saveBest(id,sc); elBest.textContent=sc; best=sc; }
     var t="Score: "+sc; if(sc>=best&&sc>0)t+="  ★ NEW BEST!";
     document.getElementById("ovFinal").textContent=t;
-    if(lbEndEl) lbEndEl.innerHTML = lbHTML(id, recordScore(id, sc));
+    if(lbEndEl) lbEndEl.innerHTML = lbHTML(id, recordScore(id, sc), sc);
     curGame=null; show("ovEnd");
   }
   function closeModal() {
@@ -2285,48 +2312,30 @@
   function loadBest(id){ return +(localStorage.getItem("da_b_"+id)||0); }
   function saveBest(id,n){ try{ localStorage.setItem("da_b_"+id,n); }catch(e){} }
 
-  /* ── Per-game leaderboards (local) ── */
+  /* ── Per-game leaderboards (your local high scores only) ── */
   function lbKey(id){ return "da_lb_"+id; }
   function saveLB(id,a){ try{ localStorage.setItem(lbKey(id), JSON.stringify(a)); }catch(e){} }
-  function seedLB(id){
-    var names=["NeonViper","RetroQueen","GhostByte","ArcadeApe","SynthRider",
-      "PixelKnight","BitWizard","TurboNyx","MegaFox","VoltKid","DiscoDuck","ZapLord"];
-    var seed=2166136261;
-    for(var i=0;i<id.length;i++){ seed^=id.charCodeAt(i); seed=(seed*16777619)>>>0; }
-    function rng(){ seed=(seed*1103515245+12345)>>>0; return seed/4294967296; }
-    var hi=Math.floor(500+rng()*2500), out=[];
-    for(var k=0;k<6;k++){
-      out.push({ n:names[Math.floor(rng()*names.length)]+(10+Math.floor(rng()*89)),
-                 s:Math.max(20,Math.floor(hi*(1-k*0.14)*(0.9+rng()*0.18))) });
-    }
-    out.sort(function(a,b){return b.s-a.s;});
-    return out;
-  }
   function loadLB(id){
     try{ var s=localStorage.getItem(lbKey(id)); if(s){ var a=JSON.parse(s); if(a&&a.length) return a; } }catch(e){}
-    var seeded=seedLB(id); saveLB(id,seeded); return seeded;
+    return [];
   }
   function recordScore(id,score){
-    var lb=loadLB(id), you=null, i;
-    for(i=0;i<lb.length;i++) if(lb[i].you){ you=lb[i]; break; }
-    if(!you){ you={n:"YOU",s:0,you:1}; lb.push(you); }
-    if(score>you.s) you.s=score;
-    lb.sort(function(a,b){return b.s-a.s;});
-    var yi=lb.indexOf(you);
-    if(lb.length>8){ if(yi>=8){ lb=lb.slice(0,7); lb.push(you); } else lb=lb.slice(0,8); }
+    var lb=loadLB(id);
+    lb.push(score|0);
+    lb.sort(function(a,b){return b-a;});
+    if(lb.length>5) lb=lb.slice(0,5);
     saveLB(id,lb); return lb;
   }
   function fmtN(n){ return (n|0).toLocaleString(); }
-  function lbHTML(id,pre){
-    var lb=pre||loadLB(id), show=lb.slice(0,5), you=null, yi=-1, i;
-    for(i=0;i<lb.length;i++) if(lb[i].you){ you=lb[i]; yi=i; break; }
-    if(you && yi>=5){ show=lb.slice(0,4); show.push(you); }
-    var rows="";
-    for(i=0;i<show.length;i++){ var e=show[i], rank=lb.indexOf(e)+1;
-      rows+='<li'+(e.you?' class="you"':'')+'><span class="r">#'+rank+'</span>'+
-            '<span class="n">'+e.n+'</span><span class="s">'+fmtN(e.s)+'</span></li>';
+  function lbHTML(id,pre,justScore){
+    var lb=pre||loadLB(id), rows="";
+    for(var i=0;i<lb.length;i++){
+      var newest = justScore!==undefined && lb[i]===justScore && rows.indexOf("you")<0 ? ' class="you"':'';
+      rows+='<li'+newest+'><span class="r">#'+(i+1)+'</span>'+
+            '<span class="n">'+(i===0?"BEST":"")+'</span><span class="s">'+fmtN(lb[i])+'</span></li>';
     }
-    return '<div class="da-lb"><h4>TOP SCORES</h4><ol>'+rows+'</ol></div>';
+    if(!rows) rows='<li><span class="r"></span><span class="n">No scores yet</span><span class="s">—</span></li>';
+    return '<div class="da-lb"><h4>YOUR TOP SCORES</h4><ol>'+rows+'</ol></div>';
   }
   function hide(id){ document.getElementById(id).classList.add("hidden"); }
   function show(id){ document.getElementById(id).classList.remove("hidden"); }

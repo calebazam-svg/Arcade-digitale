@@ -2317,14 +2317,28 @@
   function lbKey(id){ return "da_lb_"+id; }
   function saveLB(id,a){ try{ localStorage.setItem(lbKey(id), JSON.stringify(a)); }catch(e){} }
   function loadLB(id){
-    try{ var s=localStorage.getItem(lbKey(id)); if(s){ var a=JSON.parse(s); if(a&&a.length) return a; } }catch(e){}
+    try{
+      var s=localStorage.getItem(lbKey(id));
+      if(s){
+        var a=JSON.parse(s);
+        if(Array.isArray(a)){
+          var clean=[];
+          for(var i=0;i<a.length;i++){
+            var v=a[i];
+            if(typeof v==="number" && isFinite(v) && v>0) clean.push(v|0);
+            else if(v && typeof v==="object" && typeof v.s==="number" && v.s>0) clean.push(v.s|0);
+          }
+          clean.sort(function(x,y){return y-x;});
+          if(clean.length>5) clean=clean.slice(0,5);
+          return clean;
+        }
+      }
+    }catch(e){}
     return [];
   }
   function recordScore(id,score){
-    var lb=loadLB(id);
-    lb.push(score|0);
-    lb.sort(function(a,b){return b-a;});
-    if(lb.length>5) lb=lb.slice(0,5);
+    var lb=loadLB(id), v=score|0;
+    if(v>0){ lb.push(v); lb.sort(function(a,b){return b-a;}); if(lb.length>5) lb=lb.slice(0,5); }
     saveLB(id,lb); return lb;
   }
   function fmtN(n){ return (n|0).toLocaleString(); }

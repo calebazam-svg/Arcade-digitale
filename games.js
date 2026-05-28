@@ -122,7 +122,8 @@
     "Claw Machine":"claw",         "Neon Pong":"pong",
     "Tower Siege":"tower",         "Word Rush":"wordle",
     "Map Tap":"maptap",            "Turret Survivors":"survivor",
-    "Soccer Stars":"soccer",       "Pong Cup":"pongcup"
+    "Soccer Stars":"soccer",       "Pong Cup":"pongcup",
+    "Diner Empire":"diner"
   };
   var POOL = ["snake","muncher","runner","rocket","dungeon","quest","dodger",
               "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend",
@@ -2262,6 +2263,428 @@
         px_txt("SERIES "+sYou+"-"+sOpp+"  •  "+(ROUNDS[round]||""),W/2,H-8,7,"#9b8fc7");
         if(!served) px_txt("PRESS A TO SERVE",W/2,H/2-30,9,"#46ff9c");
       }};
+  });
+
+  /* 25. Diner Empire (offline restaurant tycoon with persistent save) */
+  reg("diner",
+  "Restaurant tycoon — progress saves. You have $50,000. Buy a location ($1K dump to $2M villa), pick your menu items, then run SERVICE: customers order, you cook (press A inside the green zone for 5★ reviews + tips). Spend earnings on supplies, trucks, marketing & upgrades. Open more places over time. D-pad moves the cursor, A confirms, ◀ backs out, QUIT in the hub saves and exits.",
+  function(){
+    var SAVE_KEY="da_rest_save";
+    var LOCS=[
+      {n:"Abandoned Gas Station", p:1000,    dens:0.35, lux:0, desc:"A dump. Brave eaters only."},
+      {n:"Food Truck Stop",       p:5000,    dens:0.70, lux:0, desc:"Truckers want fast & cheap."},
+      {n:"Strip Mall Corner",     p:20000,   dens:0.90, lux:1, desc:"Steady weekday foot traffic."},
+      {n:"Suburban Plaza",        p:80000,   dens:1.10, lux:2, desc:"Families & casual diners."},
+      {n:"Downtown Storefront",   p:250000,  dens:1.40, lux:2, desc:"Busy lunch crowd, pickier."},
+      {n:"Trendy Loft District",  p:600000,  dens:1.30, lux:3, desc:"Hip foodies, look-conscious."},
+      {n:"Waterfront Bistro",     p:1100000, dens:1.20, lux:4, desc:"Tourists tip well, expect quality."},
+      {n:"Hills Villa",           p:2000000, dens:0.90, lux:5, desc:"Elite clientele. Very high standards."}
+    ];
+    var ITEMS=[
+      {id:"coffee",  n:"COFFEE",   cost:0, sell:3,  c:1},
+      {id:"toast",   n:"TOAST",    cost:1, sell:4,  c:1},
+      {id:"sandwich",n:"SANDWICH", cost:2, sell:7,  c:1},
+      {id:"salad",   n:"SALAD",    cost:2, sell:9,  c:1},
+      {id:"taco",    n:"TACOS",    cost:2, sell:8,  c:1},
+      {id:"soup",    n:"SOUP",     cost:2, sell:8,  c:1},
+      {id:"burger",  n:"BURGER",   cost:3, sell:11, c:2},
+      {id:"pizza",   n:"PIZZA",    cost:5, sell:16, c:2},
+      {id:"pasta",   n:"PASTA",    cost:4, sell:14, c:2},
+      {id:"ramen",   n:"RAMEN",    cost:3, sell:13, c:2},
+      {id:"cake",    n:"CAKE",     cost:4, sell:12, c:2},
+      {id:"sushi",   n:"SUSHI",    cost:7, sell:24, c:3},
+      {id:"steak",   n:"STEAK",    cost:10,sell:36, c:3},
+      {id:"lobster", n:"LOBSTER",  cost:18,sell:65, c:3}
+    ];
+    var MKT=[
+      {n:"NONE",       cost:0,     mult:1.0},
+      {n:"LEAFLETS",   cost:500,   mult:1.3},
+      {n:"RADIO ADS",  cost:3000,  mult:1.7},
+      {n:"SOCIAL",     cost:12000, mult:2.2},
+      {n:"BILLBOARDS", cost:50000, mult:3.0}
+    ];
+    var TRUCK=[
+      {n:"NONE",         cost:0,     cap:40},
+      {n:"USED VAN",     cost:2000,  cap:120},
+      {n:"REFRIGERATED", cost:8000,  cap:280},
+      {n:"FLEET",        cost:30000, cap:700}
+    ];
+    var UPS=[
+      {id:"stove", n:"PRO STOVE",  cost:5000,  desc:"Wider green zone, faster cook"},
+      {id:"decor", n:"DECOR",      cost:8000,  desc:"+1 star bias on close calls"},
+      {id:"seats", n:"MORE SEATS", cost:12000, desc:"+50% customer flow"},
+      {id:"sous",  n:"SOUS CHEF",  cost:25000, desc:"Auto-handles cooking step 1"}
+    ];
+
+    function itemById(id){ for(var i=0;i<ITEMS.length;i++) if(ITEMS[i].id===id) return ITEMS[i]; return null; }
+    function loadSave(){
+      try{var s=localStorage.getItem(SAVE_KEY); if(s){var d=JSON.parse(s); if(d&&typeof d.cash==="number"&&Array.isArray(d.restaurants)) return d;}}catch(e){}
+      return null;
+    }
+    function saveAll(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){} }
+    function freshSave(){ return {v:1, cash:50000, restaurants:[], activeIdx:-1}; }
+    function newRestaurant(locIdx, name){
+      return { name:name, locId:locIdx, menu:["coffee","sandwich","burger"],
+        mkt:0, truck:0, ups:{}, supplies:40, reviews:[], served:0, revenue:0 };
+    }
+    function activeR(){ return save && save.restaurants[save.activeIdx]; }
+    function ratingOf(r){ if(!r||!r.reviews.length)return 0; var s=0; for(var i=0;i<r.reviews.length;i++) s+=r.reviews[i].s; return s/r.reviews.length; }
+    function maxSupplies(r){ return TRUCK[r.truck].cap; }
+    function mktMult(r){ return MKT[r.mkt].mult; }
+    function netWorth(){ if(!save)return 0; var n=save.cash; for(var i=0;i<save.restaurants.length;i++) n+=LOCS[save.restaurants[i].locId].p*0.5; return n|0; }
+    function fmt$(n){ n=n|0; if(n>=1000000) return "$"+(n/1000000).toFixed(n%1000000?1:0)+"M";
+      if(n>=10000) return "$"+(n/1000).toFixed(0)+"K"; if(n>=1000) return "$"+(n/1000).toFixed(1)+"K"; return "$"+n; }
+
+    var save=loadSave();
+    var screen, sel=0, msg="", msgT=0, nameBuf="", typingFor=null;
+    var shopItems=[];
+    var cust=null, customerT=0;
+    var cookActive=false, cookStep=0, cookSteps=1, cookBar=0, cookGreenLo=0.55, cookGreenHi=0.78, cookSpeed=0.5, cookResults=[];
+
+    if(!save){ screen="intro"; }
+    else if(save.activeIdx<0||!save.restaurants.length){ screen="buy"; }
+    else { screen="hub"; }
+
+    function setMsg(s){ msg=s; msgT=2.0; }
+    function genCustomer(r){
+      if(!r||!r.menu.length) return null;
+      for(var t=0;t<10;t++){ var id=r.menu[ri(0,r.menu.length-1)], it=itemById(id); if(it) return {item:it,waited:0}; }
+      return null;
+    }
+    function nextCustomer(){ var r=activeR(); cust = (r&&r.supplies>0) ? genCustomer(r) : null; }
+    function startCook(){
+      var r=activeR(); if(!cust) return;
+      if(r.supplies<=0){ setMsg("OUT OF SUPPLIES"); return; }
+      cookActive=true; cookStep=0; cookSteps=cust.item.c; cookBar=0; cookResults=[];
+      if(r.ups.sous && cookSteps>1){ cookResults.push(0.85); cookStep=1; }
+      var pro=!!r.ups.stove;
+      cookGreenLo=pro?0.46:0.58;
+      cookGreenHi=pro?0.80:0.74;
+      cookSpeed  =pro?0.36:0.55;
+    }
+    function evalStep(){
+      var center=(cookGreenLo+cookGreenHi)/2, halfZone=(cookGreenHi-cookGreenLo)/2;
+      var dist=Math.abs(cookBar-center);
+      var acc = dist<=halfZone ? 1 : Math.max(0, 1-(dist-halfZone)/0.3);
+      cookResults.push(acc); cookBar=0; cookStep++;
+      if(cookStep>=cookSteps) endCook();
+    }
+    function endCook(){
+      cookActive=false;
+      var r=activeR();
+      r.supplies=Math.max(0, r.supplies-1);
+      var sum=0; for(var i=0;i<cookResults.length;i++) sum+=cookResults[i];
+      var acc = cookResults.length?sum/cookResults.length:0;
+      var stars = acc>=0.85?5:acc>=0.65?4:acc>=0.45?3:acc>=0.25?2:1;
+      if(r.ups.decor && stars<5 && Math.random()<0.45) stars++;
+      if(LOCS[r.locId].lux>=3 && stars<3 && Math.random()<0.3) stars=Math.max(1,stars-1);
+      var price=cust.item.sell, cost=cust.item.cost;
+      var tip = stars===5?Math.round(price*0.4):stars===4?Math.round(price*0.15):0;
+      var pay = stars>=2 ? Math.round(price*(0.4+stars*0.12)) - cost + tip : 0;
+      pay = Math.max(0,pay);
+      save.cash += pay; r.revenue += pay; r.served++;
+      r.reviews.push({s:stars, w:Date.now(), it:cust.item.id});
+      if(r.reviews.length>30) r.reviews.shift();
+      setMsg(stars+"★  +"+fmt$(pay));
+      cust=null;
+      saveAll();
+    }
+    function buildShopItems(){
+      var items=[], r=activeR(), bulk=20, sCost=bulk*1;
+      items.push({type:"sup", label:"SUPPLIES +"+bulk, sub:"have "+r.supplies+"/"+maxSupplies(r), cost:sCost});
+      if(r.truck<TRUCK.length-1){ var nt=TRUCK[r.truck+1];
+        items.push({type:"truck", label:"TRUCK "+nt.n, sub:"cap "+TRUCK[r.truck].cap+" → "+nt.cap, cost:nt.cost}); }
+      if(r.mkt<MKT.length-1){ var nm=MKT[r.mkt+1];
+        items.push({type:"mkt", label:"MKT "+nm.n, sub:"x"+nm.mult.toFixed(1)+" customers", cost:nm.cost}); }
+      for(var u=0;u<UPS.length;u++){ var up=UPS[u];
+        if(!r.ups[up.id]) items.push({type:"up", upId:up.id, label:up.n, sub:up.desc, cost:up.cost}); }
+      items.push({type:"back", label:"BACK", sub:"", cost:0});
+      return items;
+    }
+    function buyShopItem(it){
+      var r=activeR();
+      if(it.type==="back"){ screen="hub"; sel=0; return true; }
+      if(save.cash<it.cost) return false;
+      if(it.type==="sup"){ if(r.supplies>=maxSupplies(r)) return false;
+        save.cash-=it.cost; r.supplies=Math.min(maxSupplies(r), r.supplies+20); }
+      else if(it.type==="truck"){ save.cash-=it.cost; r.truck++; }
+      else if(it.type==="mkt"){ save.cash-=it.cost; r.mkt++; }
+      else if(it.type==="up"){ save.cash-=it.cost; r.ups[it.upId]=true; }
+      saveAll(); return true;
+    }
+    function commitTyping(){
+      if(typingFor==="rename"){ var r=activeR(); if(r && nameBuf.trim()){ r.name=nameBuf.trim().toUpperCase(); saveAll(); setMsg("RENAMED"); } }
+      typingFor=null; nameBuf="";
+    }
+    function drawHeader(){
+      rect(0,0,W,30,"#02030f");
+      px_txt("$"+save.cash.toLocaleString(),10,18,9,"#46ff9c","left");
+      px_txt("CHAIN "+save.restaurants.length,W/2,18,7,"#9b8fc7");
+      var r=activeR();
+      if(r){ var rt=ratingOf(r); px_txt(r.name.slice(0,12)+(rt?" "+rt.toFixed(1)+"★":""),W-10,18,7,"#ffd23e","right"); }
+    }
+    function drawCustomer(x,y){
+      rect(x-12,y-30,24,4,"#9b6bff");
+      ctx.fillStyle="#ffd9a8";ctx.beginPath();ctx.arc(x,y-16,12,0,7);ctx.fill();
+      ctx.fillStyle="#0a0613";ctx.beginPath();ctx.arc(x-4,y-18,1.5,0,7);ctx.arc(x+4,y-18,1.5,0,7);ctx.fill();
+      ctx.strokeStyle="#0a0613";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y-14,5,0.2,Math.PI-0.2);ctx.stroke();
+      rect(x-14,y-4,28,30,"#27e8ff");
+    }
+    function drawCookBar(){
+      px_txt("STEP "+(cookStep+1)+"/"+cookSteps,W/2,82,9,"#ffd23e");
+      var bw=320, bh=28, bx=W/2-bw/2, by=130;
+      rect(bx,by,bw,bh,"#160a26");
+      ctx.strokeStyle="#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+      rect(bx+cookGreenLo*bw, by, (cookGreenHi-cookGreenLo)*bw, bh, "#46ff9c");
+      rect(bx+cookBar*bw-2, by-4, 4, bh+8, "#27e8ff");
+      px_txt("PRESS A IN THE GREEN!",W/2,184,9,"#46ff9c");
+    }
+
+    return { score:0, over:false,
+      onkey:function(k){
+        if(typingFor){
+          if(k==="ENTER") commitTyping();
+          else if(k==="BACK") nameBuf=nameBuf.slice(0,-1);
+          else if(nameBuf.length<16 && /^[A-Z]$/.test(k)) nameBuf+=k;
+          return;
+        }
+        if(k==="A"||k==="Z"||k==="J"||k==="ENTER") IN.edge.action=1;
+      },
+      update:function(dt){
+        if(msgT>0) msgT-=dt;
+        this.score = netWorth();
+        if(typingFor){ if(IN.edge.action) commitTyping(); return; }
+
+        if(screen==="intro"){
+          if(IN.edge.action){ save=freshSave(); saveAll(); screen="buy"; sel=0; }
+          return;
+        }
+        if(screen==="buy"){
+          if(IN.edge.up) sel=(sel+LOCS.length-1)%LOCS.length;
+          if(IN.edge.down) sel=(sel+1)%LOCS.length;
+          if(IN.edge.action){
+            var l=LOCS[sel];
+            if(save.cash>=l.p){
+              save.cash-=l.p;
+              var r=newRestaurant(sel,"RESTAURANT "+(save.restaurants.length+1));
+              save.restaurants.push(r); save.activeIdx=save.restaurants.length-1; saveAll();
+              screen="hub"; sel=0;
+              typingFor="rename"; nameBuf="";
+              setMsg("BOUGHT! NAME YOUR PLACE");
+            } else setMsg("NOT ENOUGH CASH");
+          }
+          if(IN.edge.left && save.activeIdx>=0){ screen="hub"; sel=0; }
+          return;
+        }
+        if(screen==="hub"){
+          var opts=["SERVICE","MENU","SHOP","REVIEWS","TRAVEL","BUY LOCATION","RENAME","QUIT"];
+          if(IN.edge.up) sel=(sel+opts.length-1)%opts.length;
+          if(IN.edge.down) sel=(sel+1)%opts.length;
+          if(IN.edge.action){
+            var o=opts[sel];
+            if(o==="SERVICE"){ screen="service"; customerT=1.2; cust=null; cookActive=false; }
+            else if(o==="MENU"){ screen="menu"; sel=0; }
+            else if(o==="SHOP"){ screen="shop"; sel=0; shopItems=buildShopItems(); }
+            else if(o==="REVIEWS"){ screen="reviews"; }
+            else if(o==="TRAVEL"){ screen="travel"; sel=save.activeIdx; }
+            else if(o==="BUY LOCATION"){ screen="buy"; sel=0; }
+            else if(o==="RENAME"){ typingFor="rename"; nameBuf=activeR().name; }
+            else if(o==="QUIT"){ saveAll(); this.over=true; }
+          }
+          return;
+        }
+        if(screen==="service"){
+          if(IN.edge.left){ screen="hub"; sel=0; cookActive=false; cust=null; saveAll(); return; }
+          if(cookActive){
+            cookBar += cookSpeed*dt;
+            if(cookBar>=1){ cookResults.push(0); cookBar=0; cookStep++; if(cookStep>=cookSteps) endCook(); }
+            if(IN.edge.action) evalStep();
+          } else if(cust){
+            if(IN.edge.action) startCook();
+          } else {
+            customerT-=dt;
+            if(customerT<=0){
+              var r=activeR(), rt=ratingOf(r)||3, loc=LOCS[r.locId];
+              var seats = r.ups.seats?1.5:1;
+              var arrival = 4/(loc.dens*mktMult(r)*seats*Math.max(0.4, 1+(rt-3)*0.2));
+              customerT=arrival;
+              nextCustomer();
+            }
+          }
+          return;
+        }
+        if(screen==="menu"){
+          if(IN.edge.up) sel=(sel+ITEMS.length-1)%ITEMS.length;
+          if(IN.edge.down) sel=(sel+1)%ITEMS.length;
+          if(IN.edge.action){
+            var rr=activeR(), id=ITEMS[sel].id, idx=rr.menu.indexOf(id);
+            if(idx>=0){ if(rr.menu.length>1) rr.menu.splice(idx,1); else setMsg("KEEP AT LEAST 1 ITEM"); }
+            else rr.menu.push(id);
+            saveAll();
+          }
+          if(IN.edge.left){ screen="hub"; sel=0; }
+          return;
+        }
+        if(screen==="shop"){
+          if(IN.edge.up) sel=(sel+shopItems.length-1)%shopItems.length;
+          if(IN.edge.down) sel=(sel+1)%shopItems.length;
+          if(IN.edge.action){
+            var it=shopItems[sel];
+            if(buyShopItem(it)){ if(it.type!=="back"){ shopItems=buildShopItems(); setMsg("BOUGHT"); } }
+            else setMsg("CAN'T BUY THAT");
+          }
+          if(IN.edge.left){ screen="hub"; sel=0; }
+          return;
+        }
+        if(screen==="reviews"){
+          if(IN.edge.left||IN.edge.action){ screen="hub"; sel=0; }
+          return;
+        }
+        if(screen==="travel"){
+          if(!save.restaurants.length){ screen="buy"; sel=0; return; }
+          if(IN.edge.up) sel=(sel+save.restaurants.length-1)%save.restaurants.length;
+          if(IN.edge.down) sel=(sel+1)%save.restaurants.length;
+          if(IN.edge.action){ save.activeIdx=sel; saveAll(); screen="hub"; sel=0; setMsg("TRAVELED"); }
+          if(IN.edge.left){ screen="hub"; sel=0; }
+          return;
+        }
+      },
+      draw:function(){
+        clear("#0a0820","#160a26");
+        if(typingFor){
+          rect(0,0,W,H,"#0a0613");
+          px_txt("NAME YOUR RESTAURANT",W/2,80,11,"#ffd23e");
+          rect(W/2-150,130,300,40,"#160a26");
+          ctx.strokeStyle="#27e8ff";ctx.lineWidth=2;ctx.strokeRect(W/2-150,130,300,40);
+          px_txt(nameBuf+"_",W/2,158,12,"#fff");
+          px_txt("TYPE LETTERS - BACKSPACE - ENTER",W/2,210,7,"#9b8fc7");
+          px_txt("(A button also confirms)",W/2,224,6,"#5a7a9a");
+          return;
+        }
+        if(screen==="intro"){
+          px_txt("DINER EMPIRE",W/2,80,18,"#ffd23e");
+          px_txt("OFFLINE RESTAURANT TYCOON",W/2,110,7,"#27e8ff");
+          px_txt("Your progress saves automatically.",W/2,150,8,"#46ff9c");
+          px_txt("Start with $50,000.",W/2,170,8,"#fff");
+          px_txt("Buy a location, customise the menu,",W/2,196,7,"#cdbff0");
+          px_txt("cook customer orders, earn reviews,",W/2,210,7,"#cdbff0");
+          px_txt("grow your chain.",W/2,224,7,"#cdbff0");
+          px_txt("PRESS A TO BEGIN",W/2,272,11,"#46ff9c");
+          return;
+        }
+        drawHeader();
+        if(screen==="buy"){
+          px_txt("BUY A LOCATION",W/2,46,11,"#27e8ff");
+          var top=70, h=22;
+          for(var i=0;i<LOCS.length;i++){
+            var y=top+i*h, hi=i===sel, can=save.cash>=LOCS[i].p;
+            if(hi) rect(8,y-12,W-16,h,"#1a2350");
+            px_txt(LOCS[i].n,16,y+3,8,hi?"#fff":(can?"#cdbff0":"#5a4a7a"),"left");
+            px_txt(fmt$(LOCS[i].p),W-16,y+3,8,can?"#ffd23e":"#ff8a8a","right");
+          }
+          px_txt(LOCS[sel].desc,W/2,H-26,7,"#9b8fc7");
+          px_txt(save.activeIdx>=0?"◀ BACK   A: BUY":"A: BUY",W/2,H-10,7,"#46ff9c");
+          if(msgT>0) px_txt(msg,W/2,H-40,7,"#ff8a8a");
+          return;
+        }
+        if(screen==="hub"){
+          var r=activeR();
+          px_txt(r.name.toUpperCase().slice(0,20),W/2,52,11,"#ffd23e");
+          px_txt(LOCS[r.locId].n,W/2,72,7,"#9b8fc7");
+          var rat=ratingOf(r);
+          px_txt(rat?rat.toFixed(1)+"★":"NO REVIEWS",98,94,7,rat>=4?"#46ff9c":rat>=2.5?"#ffd23e":"#ff8a8a");
+          px_txt("SERVED "+r.served,W/2,94,7,"#27e8ff");
+          px_txt("SUP "+r.supplies+"/"+maxSupplies(r),W-98,94,7,r.supplies>10?"#fff":"#ff8a8a");
+          var opts=["SERVICE","MENU","SHOP","REVIEWS","TRAVEL","BUY LOCATION","RENAME","QUIT"];
+          var top=118, h=18;
+          for(var i=0;i<opts.length;i++){
+            var y=top+i*h, hi=i===sel;
+            if(hi) rect(W/2-110,y-12,220,h,"#1a2350");
+            px_txt(opts[i],W/2,y+2,9,hi?"#fff":"#cdbff0");
+          }
+          if(msgT>0) px_txt(msg,W/2,H-10,7,"#46ff9c");
+          return;
+        }
+        if(screen==="service"){
+          var r=activeR();
+          rect(0,30,W,H-30,"#080518");
+          rect(0,200,W,4,"#3a2a6b");
+          px_txt(r.name.toUpperCase().slice(0,18),W/2,52,9,"#ffd23e");
+          px_txt("◀ EXIT",80,H-10,7,"#9b8fc7","left");
+          px_txt("SUP "+r.supplies,W-12,H-10,7,r.supplies>10?"#27e8ff":"#ff8a8a","right");
+          if(cookActive) drawCookBar();
+          else if(cust){
+            drawCustomer(W/2,178);
+            px_txt('"'+cust.item.n+', PLEASE"',W/2,108,10,"#fff");
+            px_txt("PRESS A TO COOK",W/2,240,9,"#46ff9c");
+          } else {
+            px_txt("WAITING FOR A CUSTOMER...",W/2,160,9,"#9b8fc7");
+            if(r.supplies<=0) px_txt("OUT OF SUPPLIES - VISIT THE SHOP",W/2,180,8,"#ff8a8a");
+          }
+          if(msgT>0) px_txt(msg,W/2,80,11,msg.indexOf("★")>=0?"#ffd23e":"#46ff9c");
+          return;
+        }
+        if(screen==="menu"){
+          px_txt("MENU EDITOR",W/2,46,11,"#27e8ff");
+          var r=activeR();
+          var top=70, h=18;
+          for(var i=0;i<ITEMS.length;i++){
+            var y=top+i*h, hi=i===sel, on=r.menu.indexOf(ITEMS[i].id)>=0;
+            if(hi) rect(8,y-12,W-16,h,"#1a2350");
+            px_txt((on?"[X] ":"[ ] ")+ITEMS[i].n,20,y+3,8,on?"#46ff9c":"#9b8fc7","left");
+            px_txt("$"+ITEMS[i].sell+"  c"+ITEMS[i].c,W-20,y+3,7,"#ffd23e","right");
+          }
+          px_txt("◀ BACK   A: TOGGLE",W/2,H-10,7,"#46ff9c");
+          if(msgT>0) px_txt(msg,W/2,H-22,7,"#ff8a8a");
+          return;
+        }
+        if(screen==="shop"){
+          px_txt("SHOP & UPGRADES",W/2,46,11,"#27e8ff");
+          var top=70, h=20;
+          for(var i=0;i<shopItems.length;i++){
+            var y=top+i*h, hi=i===sel, it=shopItems[i], back=it.type==="back", can = back||save.cash>=it.cost;
+            if(hi) rect(8,y-13,W-16,h,"#1a2350");
+            px_txt(it.label,16,y+2,8,hi?"#fff":(back?"#9b8fc7":(can?"#cdbff0":"#5a4a7a")),"left");
+            if(it.sub) px_txt(it.sub,16,y+13,5,"#9b8fc7","left");
+            if(!back) px_txt(fmt$(it.cost),W-16,y+2,8,can?"#ffd23e":"#ff8a8a","right");
+          }
+          if(msgT>0) px_txt(msg,W/2,H-10,7,"#46ff9c");
+          return;
+        }
+        if(screen==="reviews"){
+          px_txt("RECENT REVIEWS",W/2,46,11,"#27e8ff");
+          var r=activeR(), revs=r.reviews.slice().reverse();
+          if(!revs.length){
+            px_txt("No reviews yet - serve customers!",W/2,160,8,"#9b8fc7");
+          } else {
+            var top=70, h=18;
+            for(var i=0;i<Math.min(revs.length,12);i++){
+              var rv=revs[i], y=top+i*h, it=itemById(rv.it);
+              var stars="★★★★★".slice(0,rv.s);
+              px_txt(stars,16,y+3,8,rv.s>=4?"#46ff9c":rv.s>=3?"#ffd23e":"#ff8a8a","left");
+              var blurb=rv.s===5?"AMAZING!":rv.s===4?"GREAT":rv.s===3?"DECENT":rv.s===2?"MEH":"AWFUL";
+              px_txt((it?it.n:"")+" - "+blurb,90,y+3,7,"#cdbff0","left");
+            }
+          }
+          px_txt("◀ / A: BACK",W/2,H-10,8,"#46ff9c");
+          return;
+        }
+        if(screen==="travel"){
+          px_txt("YOUR RESTAURANTS",W/2,46,11,"#27e8ff");
+          var top=70, h=24;
+          for(var i=0;i<save.restaurants.length;i++){
+            var R=save.restaurants[i], y=top+i*h, hi=i===sel, cur=i===save.activeIdx;
+            if(hi) rect(8,y-13,W-16,h,"#1a2350");
+            px_txt((cur?"▶ ":"")+R.name,16,y+2,8,hi?"#fff":"#cdbff0","left");
+            px_txt(LOCS[R.locId].n,16,y+14,6,"#9b8fc7","left");
+            var rt=ratingOf(R);
+            px_txt(rt?rt.toFixed(1)+"★":"--",W-16,y+2,8,"#ffd23e","right");
+          }
+          px_txt("◀ BACK   A: TRAVEL",W/2,H-10,7,"#46ff9c");
+          return;
+        }
+      }
+    };
   });
 
   /* Mystery handled in startGame() */

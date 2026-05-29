@@ -2310,20 +2310,27 @@
     };
 
     var ITEMS=[
-      {id:"coffee",  n:"COFFEE",   cost:0, sell:3,  steps:["pour"]},
-      {id:"toast",   n:"TOAST",    cost:1, sell:4,  steps:["cook"]},
-      {id:"sandwich",n:"SANDWICH", cost:2, sell:7,  steps:["prep","plate"]},
-      {id:"salad",   n:"SALAD",    cost:2, sell:9,  steps:["chop","plate"]},
-      {id:"taco",    n:"TACOS",    cost:2, sell:8,  steps:["prep","plate"]},
-      {id:"soup",    n:"SOUP",     cost:2, sell:8,  steps:["chop","boil"]},
-      {id:"burger",  n:"BURGER",   cost:3, sell:11, steps:["prep","fry","plate"]},
-      {id:"pizza",   n:"PIZZA",    cost:5, sell:16, steps:["prep","cook","slice"]},
-      {id:"pasta",   n:"PASTA",    cost:4, sell:14, steps:["boil","plate","season"]},
-      {id:"ramen",   n:"RAMEN",    cost:3, sell:13, steps:["chop","boil","plate"]},
-      {id:"cake",    n:"CAKE",     cost:4, sell:12, steps:["prep","cook","plate"]},
-      {id:"sushi",   n:"SUSHI",    cost:7, sell:24, steps:["slice","season","plate"]},
-      {id:"steak",   n:"STEAK",    cost:10,sell:36, steps:["season","fry","plate"]},
-      {id:"lobster", n:"LOBSTER",  cost:18,sell:65, steps:["boil","slice","plate"]}
+      {id:"coffee",  n:"COFFEE",   cost:0, sell:3,  unlock:0,     steps:["pour"]},
+      {id:"toast",   n:"TOAST",    cost:1, sell:4,  unlock:0,     steps:["cook"]},
+      {id:"sandwich",n:"SANDWICH", cost:2, sell:7,  unlock:200,   steps:["prep","plate"]},
+      {id:"salad",   n:"SALAD",    cost:2, sell:9,  unlock:250,   steps:["chop","plate"]},
+      {id:"taco",    n:"TACOS",    cost:2, sell:8,  unlock:200,   steps:["prep","plate"]},
+      {id:"soup",    n:"SOUP",     cost:2, sell:8,  unlock:250,   steps:["chop","boil"]},
+      {id:"burger",  n:"BURGER",   cost:3, sell:11, unlock:800,   steps:["prep","fry","plate"]},
+      {id:"pizza",   n:"PIZZA",    cost:5, sell:16, unlock:1200,  steps:["prep","cook","slice"]},
+      {id:"pasta",   n:"PASTA",    cost:4, sell:14, unlock:1000,  steps:["boil","plate","season"]},
+      {id:"ramen",   n:"RAMEN",    cost:3, sell:13, unlock:900,   steps:["chop","boil","plate"]},
+      {id:"cake",    n:"CAKE",     cost:4, sell:12, unlock:800,   steps:["prep","cook","plate"]},
+      {id:"sushi",   n:"SUSHI",    cost:7, sell:24, unlock:3500,  steps:["slice","season","plate"]},
+      {id:"steak",   n:"STEAK",    cost:10,sell:36, unlock:6000,  steps:["season","fry","plate"]},
+      {id:"lobster", n:"LOBSTER",  cost:18,sell:65, unlock:15000, steps:["boil","slice","plate"]}
+    ];
+
+    var EMPLOYEES=[
+      {id:"linecook", n:"LINE COOK", cost:8000,  desc:"One cook also serves a 2nd customer"},
+      {id:"waiter",   n:"WAITER",    cost:5000,  desc:"Patience +66% (15s before walkoff)"},
+      {id:"host",     n:"HOST",      cost:6000,  desc:"+25% customers per day"},
+      {id:"marketer", n:"MARKETER",  cost:12000, desc:"+0.3 review boost"}
     ];
 
     var MKT=[
@@ -2902,12 +2909,22 @@
     function saveAll(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){} }
     function freshSave(){
       var seed = Math.floor(Math.random()*4294967296);
-      return {v:3, cash:50000, restaurants:[], activeIdx:-1, worldSeed:seed, daysCompleted:0};
+      return {v:4, cash:50000, restaurants:[], activeIdx:-1, worldSeed:seed, daysCompleted:0, unlocked:["coffee","toast"]};
     }
     function newRestaurant(locIdx, genreIdx, name){
       var g=GENRES[genreIdx];
+      // Auto-unlock the genre's starter menu items so the player can actually serve them
+      if(!save.unlocked) save.unlocked=["coffee","toast"];
+      for(var u=0;u<g.menu.length;u++){
+        if(save.unlocked.indexOf(g.menu[u])<0) save.unlocked.push(g.menu[u]);
+      }
       return { name:name, locId:locIdx, genre:g.id, menu:g.menu.slice(),
-        mkt:0, truck:0, ups:{}, supplies:40, reviews:[], served:0, revenue:0 };
+        mkt:0, truck:0, ups:{}, employees:{}, supplies:40, reviews:[], served:0, revenue:0 };
+    }
+    function isUnlocked(id){ return (save.unlocked||["coffee","toast"]).indexOf(id)>=0; }
+    function unlockItem(id){
+      if(!save.unlocked) save.unlocked=["coffee","toast"];
+      if(save.unlocked.indexOf(id)<0) save.unlocked.push(id);
     }
     function activeR(){ return save && save.restaurants[save.activeIdx]; }
     function ratingOf(r){ if(!r||!r.reviews.length)return 0; var s=0; for(var i=0;i<r.reviews.length;i++) s+=r.reviews[i].s; return s/r.reviews.length; }
@@ -3061,10 +3078,11 @@
       var acc = cookResults.length?sum/cookResults.length:0;
       var stars = acc>=0.85?5:acc>=0.65?4:acc>=0.45?3:acc>=0.25?2:1;
       if(r.ups.decor && stars<5 && Math.random()<0.45) stars++;
+      if(r.employees && r.employees.marketer && stars<5 && Math.random()<0.35) stars++;
       if(LOCS[r.locId].lux>=3 && stars<3 && Math.random()<0.3) stars=Math.max(1,stars-1);
       // tier multiplier — higher-tier locations charge way more per dish
       var tierMult = 1 + LOCS[r.locId].lux * 0.6;
-      var price = cust.item.sell * 4 * tierMult;   // 4x base price scale
+      var price = cust.item.sell * 4 * tierMult;
       var cost = cust.item.cost * 2;
       var tip = stars===5?Math.round(price*0.4):stars===4?Math.round(price*0.15):0;
       var pay = stars>=2 ? Math.round(price*(0.4+stars*0.12) - cost + tip) : 0;
@@ -3073,7 +3091,16 @@
       dayServed++; dayRev += pay;
       r.reviews.push({s:stars, w:Date.now(), it:cust.item.id});
       if(r.reviews.length>30) r.reviews.shift();
-      setMsg(stars+"★  +"+fmt$(pay));
+      // Line cook: same cook serves a second waiting customer for free
+      if(r.employees && r.employees.linecook && (dayServed+dayLost) < dayQuota){
+        save.cash += pay; r.revenue += pay; r.served++;
+        dayServed++; dayRev += pay;
+        r.reviews.push({s:stars, w:Date.now(), it:cust.item.id});
+        if(r.reviews.length>30) r.reviews.shift();
+        setMsg(stars+"★ x2  +"+fmt$(pay*2)+"  LINE COOK");
+      } else {
+        setMsg(stars+"★  +"+fmt$(pay));
+      }
       cust=null;
       saveAll();
     }
@@ -3466,13 +3493,14 @@
         }
 
         if(screen==="hub"){
-          var opts=["SERVICE","MENU","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
           if(IN.edge.up) sel=(sel+opts.length-1)%opts.length;
           if(IN.edge.down) sel=(sel+1)%opts.length;
           if(IN.edge.action){
             var o=opts[sel];
             if(o==="SERVICE"){ screen="service"; customerT=1.2; cust=null; cookActive=false; }
             else if(o==="MENU"){ screen="menu"; sel=0; }
+            else if(o==="STAFF"){ screen="staff"; sel=0; }
             else if(o==="SHOP"){ screen="shop"; sel=0; shopItems=buildShopItems(); }
             else if(o==="WORLD"){ screen="world"; worldList=genWorld(); worldSel=0; }
             else if(o==="REVIEWS"){ screen="reviews"; }
@@ -3491,6 +3519,7 @@
             var seats=r.ups.seats?1.5:1;
             var base=loc.dens*mktMult(r)*seats*(1+(rt-3)*0.25);
             dayQuota=Math.max(3, Math.round(base*5*(0.85+Math.random()*0.3)+2));
+            if(r.employees && r.employees.host) dayQuota = Math.round(dayQuota*1.25);
             dayServed=0; dayLost=0; dayRev=0;
             dayState="running"; customerT=1.0; cust=null; cookActive=false; custWaited=0;
           }
@@ -3509,7 +3538,9 @@
             tickCook(dt);
           } else if(cust){
             custWaited+=dt;
-            if(custWaited>9){
+            var rA=activeR();
+            var patience = (rA.employees && rA.employees.waiter) ? 15 : 9;
+            if(custWaited>patience){
               cust=null; custWaited=0; dayLost++;
               var rr=activeR();
               rr.reviews.push({s:1, w:Date.now(), it:"-"});
@@ -3535,10 +3566,38 @@
           if(IN.edge.up) sel=(sel+ITEMS.length-1)%ITEMS.length;
           if(IN.edge.down) sel=(sel+1)%ITEMS.length;
           if(IN.edge.action){
-            var rr=activeR(), id=ITEMS[sel].id, idx=rr.menu.indexOf(id);
-            if(idx>=0){ if(rr.menu.length>1) rr.menu.splice(idx,1); else setMsg("KEEP AT LEAST 1 ITEM"); }
-            else rr.menu.push(id);
+            var rr=activeR(), item=ITEMS[sel], id=item.id;
+            if(!isUnlocked(id)){
+              if(save.cash >= item.unlock){
+                save.cash -= item.unlock;
+                unlockItem(id);
+                if(rr.menu.indexOf(id)<0) rr.menu.push(id);
+                setMsg("UNLOCKED "+item.n);
+              } else setMsg("NOT ENOUGH CASH");
+            } else {
+              var idx=rr.menu.indexOf(id);
+              if(idx>=0){ if(rr.menu.length>1) rr.menu.splice(idx,1); else setMsg("KEEP AT LEAST 1 ITEM"); }
+              else rr.menu.push(id);
+            }
             saveAll();
+          }
+          if(IN.edge.left){ screen="hub"; sel=0; }
+          return;
+        }
+
+        if(screen==="staff"){
+          if(IN.edge.up) sel=(sel+EMPLOYEES.length-1)%EMPLOYEES.length;
+          if(IN.edge.down) sel=(sel+1)%EMPLOYEES.length;
+          if(IN.edge.action){
+            var rr=activeR(), emp=EMPLOYEES[sel];
+            if(rr.employees && rr.employees[emp.id]) setMsg("ALREADY HIRED");
+            else if(save.cash>=emp.cost){
+              save.cash-=emp.cost;
+              if(!rr.employees) rr.employees={};
+              rr.employees[emp.id]=true;
+              saveAll();
+              setMsg("HIRED "+emp.n);
+            } else setMsg("NOT ENOUGH CASH");
           }
           if(IN.edge.left){ screen="hub"; sel=0; }
           return;
@@ -3643,7 +3702,7 @@
           px_txt(rat?rat.toFixed(1)+"★":"NO REVIEWS",96,96,7,rat>=4?"#46ff9c":rat>=2.5?"#ffd23e":"#ff8a8a");
           px_txt("SERVED "+r.served,W/2,96,7,"#27e8ff");
           px_txt("SUP "+r.supplies+"/"+maxSupplies(r),W-96,96,7,r.supplies>10?"#fff":"#ff8a8a");
-          var opts=["SERVICE","MENU","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
           var top=108, h=16;
           for(var i=0;i<opts.length;i++){
             var y=top+i*h, hi=i===sel;
@@ -3691,7 +3750,8 @@
             }
             px_txt(stepsStr,W/2,130,5,"#9b8fc7");
             // patience bar
-            var pw=200, pbx=W/2-pw/2, pby=H-40, frac=Math.max(0,Math.min(1,1-custWaited/9));
+            var patience = (r.employees && r.employees.waiter) ? 15 : 9;
+            var pw=200, pbx=W/2-pw/2, pby=H-40, frac=Math.max(0,Math.min(1,1-custWaited/patience));
             rect(pbx,pby,pw,4,"#3a2a6b");
             rect(pbx,pby,pw*frac,4,frac>0.5?"#46ff9c":frac>0.25?"#ffd23e":"#ff3ea5");
             px_txt("PRESS A TO COOK",W/2,235,9,"#46ff9c");
@@ -3708,15 +3768,41 @@
           var r=activeR();
           var top=70, h=20;
           for(var i=0;i<ITEMS.length;i++){
-            var y=top+i*h, hi=i===sel, on=r.menu.indexOf(ITEMS[i].id)>=0;
+            var item=ITEMS[i], y=top+i*h, hi=i===sel;
+            var unlocked=isUnlocked(item.id), on=r.menu.indexOf(item.id)>=0;
             if(hi) rect(8,y-14,W-16,h,"#1a2350");
-            // mini sprite
-            drawFood(ITEMS[i].id, 12, y-12, 18);
-            px_txt((on?"[X] ":"[ ] ")+ITEMS[i].n,38,y+2,7,on?"#46ff9c":"#9b8fc7","left");
-            px_txt("$"+ITEMS[i].sell+"  ("+ITEMS[i].steps.length+" STEP)",W-12,y+2,6,"#ffd23e","right");
+            drawFood(item.id, 12, y-12, 18);
+            if(unlocked){
+              px_txt((on?"[X] ":"[ ] ")+item.n, 38, y+2, 7, on?"#46ff9c":"#9b8fc7","left");
+              px_txt("$"+item.sell+"  "+item.steps.length+"STEP", W-12, y+2, 6, "#ffd23e","right");
+            } else {
+              var can=save.cash>=item.unlock;
+              px_txt("[$] "+item.n, 38, y+2, 7, can?"#ffaa5a":"#5a4a7a","left");
+              px_txt("UNLOCK "+fmt$(item.unlock), W-12, y+2, 6, can?"#46ff9c":"#ff8a8a","right");
+            }
           }
-          px_txt("◄ BACK   A: TOGGLE",W/2,H-10,7,"#46ff9c");
+          px_txt("◄ BACK   A: BUY / TOGGLE",W/2,H-10,7,"#46ff9c");
           if(msgT>0) px_txt(msg,W/2,H-22,7,"#ff8a8a");
+          return;
+        }
+
+        if(screen==="staff"){
+          px_txt("STAFF — HIRE TO SCALE UP",W/2,46,10,"#27e8ff");
+          var r=activeR();
+          var top=84, h=46;
+          for(var i=0;i<EMPLOYEES.length;i++){
+            var emp=EMPLOYEES[i], y=top+i*h, hi=i===sel;
+            var hired = r.employees && r.employees[emp.id];
+            if(hi) rect(8,y-14,W-16,h-4,"#1a2350");
+            ctx.strokeStyle=hi?"#27e8ff":(hired?"#46ff9c":"#3a2a6b");ctx.lineWidth=1;
+            ctx.strokeRect(8,y-14,W-16,h-4);
+            px_txt(emp.n,16,y+2,9,hired?"#46ff9c":hi?"#fff":"#cdbff0","left");
+            px_txt(emp.desc,16,y+18,5,"#9b8fc7","left");
+            if(hired) px_txt("HIRED",W-16,y+2,8,"#46ff9c","right");
+            else px_txt(fmt$(emp.cost),W-16,y+2,9,save.cash>=emp.cost?"#ffd23e":"#ff8a8a","right");
+          }
+          px_txt("◄ BACK   A: HIRE",W/2,H-10,7,"#46ff9c");
+          if(msgT>0) px_txt(msg,W/2,H-22,7,"#46ff9c");
           return;
         }
 

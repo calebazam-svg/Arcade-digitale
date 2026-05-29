@@ -2333,6 +2333,124 @@
       {id:"marketer", n:"MARKETER",  cost:12000, desc:"+0.3 review boost"}
     ];
 
+    // Interior decor — pure visual + customer flow boost
+    function decCarpet(){
+      rect(48,196,W-96,24,"#7a1a3a");
+      rect(52,200,W-104,16,"#aa2a4a");
+      for(var i=0;i<7;i++) rect(56+i*52,206,28,4,"#cd3a5a");
+    }
+    function decTables(){
+      for(var i=0;i<3;i++){
+        var tx=110+i*120, ty=178;
+        rect(tx-18,ty,36,5,"#3a2a1a");
+        rect(tx-3,ty+5,6,16,"#5a4a3a");
+        rect(tx-25,ty+9,8,4,"#5a3a3a");
+        rect(tx+17,ty+9,8,4,"#5a3a3a");
+        rect(tx-25,ty+13,8,9,"#3a2a3a");
+        rect(tx+17,ty+13,8,9,"#3a2a3a");
+      }
+    }
+    function decPlants(){
+      [[26,176],[W-44,176]].forEach(function(p){
+        rect(p[0],p[1],18,18,"#5a3a2a");
+        rect(p[0]+2,p[1]+2,14,4,"#7a4a2a");
+        fillC("#2a6a3a");
+        ctx.beginPath();ctx.arc(p[0]+9,p[1]-3,14,0,7);ctx.fill();
+        fillC("#4a8a4a");
+        ctx.beginPath();ctx.arc(p[0]+5,p[1]-7,7,0,7);ctx.fill();
+        ctx.beginPath();ctx.arc(p[0]+13,p[1]-9,7,0,7);ctx.fill();
+      });
+    }
+    function decLights(){
+      for(var i=0;i<3;i++){
+        var lx=110+i*120;
+        rect(lx-1,30,2,24,"#1a1a1a");
+        fillC("#1a1a1a");
+        ctx.beginPath();ctx.arc(lx,58,9,Math.PI,0);ctx.fill();
+        fillC("#ffd23e");
+        ctx.beginPath();ctx.arc(lx,60,5,0,7);ctx.fill();
+        ctx.save();ctx.globalAlpha=.25;fillC("#ffd23e");
+        ctx.beginPath();ctx.arc(lx,62,20,0,7);ctx.fill();ctx.restore();
+      }
+    }
+    function decArt(){
+      rect(20,80,42,32,"#7a4a2a");
+      rect(23,83,36,26,"#2a4a7a");
+      fillC("#46ff9c");
+      ctx.beginPath();ctx.arc(33,98,5,0,7);ctx.fill();
+      rect(38,100,16,4,"#ffd23e");
+      rect(W-62,80,42,32,"#7a4a2a");
+      rect(W-59,83,36,26,"#5a2a4a");
+      fillC("#ffd23e");
+      ctx.beginPath();ctx.moveTo(W-48,86);ctx.lineTo(W-62,106);ctx.lineTo(W-32,106);ctx.closePath();ctx.fill();
+    }
+    function decTV(){
+      rect(W/2-36,76,72,42,"#1a1a1a");
+      rect(W/2-33,79,66,36,"#1a3a5a");
+      fillC("#27e8ff");ctx.fillRect(W/2-30,82,60,30);
+      fillC("#ff3ea5");rect(W/2-20,86,12,8,"#ff3ea5");
+      fillC("#ffd23e");rect(W/2-5,90,14,12,"#ffd23e");
+      fillC("#46ff9c");rect(W/2+12,94,8,12,"#46ff9c");
+    }
+    function decBar(){
+      rect(20,130,140,50,"#3a1a1a");
+      rect(20,130,140,8,"#5a2a1a");
+      rect(20,178,140,4,"#1a0a0a");
+      var cols=["#46ff9c","#27e8ff","#ffd23e","#ff3ea5","#9b6bff","#ff8a3e"];
+      for(var i=0;i<6;i++){
+        var bx=26+i*22;
+        rect(bx,110,10,22,cols[i]);
+        rect(bx+1,106,8,6,"#222");
+      }
+    }
+    function decJuke(){
+      rect(W-58,128,40,52,"#5a1a3a");
+      rect(W-55,131,34,18,"#0a0613");
+      rect(W-50,135,10,10,"#ffd23e");
+      ctx.save();ctx.globalAlpha=.6;fillC("#fff");
+      ctx.beginPath();ctx.arc(W-45,140,3,0,7);ctx.fill();ctx.restore();
+      rect(W-55,154,34,4,"#ff8a3e");
+      for(var i=0;i<4;i++) rect(W-52+i*8,164,5,4,["#27e8ff","#46ff9c","#ffd23e","#ff3ea5"][i]);
+    }
+    function decBooths(){
+      for(var i=0;i<2;i++){
+        var by=128+i*28;
+        rect(180,by,90,5,"#5a2a3a");
+        rect(180,by+5,90,18,"#7a3a4a");
+        rect(184,by+8,82,12,"#aa4a5a");
+        rect(180,by+23,90,3,"#2a1a2a");
+      }
+    }
+    function decChandelier(){
+      var cx=W/2, cy=30;
+      rect(cx-1,cy,2,18,"#3a2a3a");
+      fillC("#ffd23e");
+      ctx.beginPath();
+      ctx.moveTo(cx-22,cy+18);ctx.lineTo(cx+22,cy+18);
+      ctx.lineTo(cx+30,cy+30);ctx.lineTo(cx-30,cy+30);
+      ctx.closePath();ctx.fill();
+      for(var i=0;i<6;i++){
+        var crx=cx-25+i*10;
+        fillC("#fff");
+        ctx.beginPath();ctx.moveTo(crx,cy+30);ctx.lineTo(crx-3,cy+44);ctx.lineTo(crx+3,cy+44);ctx.closePath();ctx.fill();
+      }
+      ctx.save();ctx.globalAlpha=.3;fillC("#ffd23e");
+      ctx.beginPath();ctx.arc(cx,cy+34,38,0,7);ctx.fill();ctx.restore();
+    }
+
+    var DECOR=[
+      {id:"carpet",     n:"CARPET",         cost:600,   score:1, place:decCarpet},
+      {id:"plants",     n:"POTTED PLANTS",  cost:300,   score:1, place:decPlants},
+      {id:"tables",     n:"NICE TABLES",    cost:800,   score:2, place:decTables},
+      {id:"lights",     n:"PENDANT LIGHTS", cost:1200,  score:2, place:decLights},
+      {id:"artwork",    n:"WALL ART",       cost:1500,  score:2, place:decArt},
+      {id:"tv",         n:"FLAT-SCREEN TV", cost:2000,  score:3, place:decTV},
+      {id:"jukebox",    n:"JUKEBOX",        cost:3500,  score:3, place:decJuke},
+      {id:"booths",     n:"BOOTH SEATING",  cost:5000,  score:4, place:decBooths},
+      {id:"bar",        n:"FULL BAR",       cost:8000,  score:5, place:decBar},
+      {id:"chandelier", n:"CHANDELIER",     cost:15000, score:6, place:decChandelier}
+    ];
+
     var MKT=[
       {n:"NONE",       cost:0,     mult:1.0},
       {n:"LEAFLETS",   cost:500,   mult:1.3},
@@ -2919,9 +3037,15 @@
         if(save.unlocked.indexOf(g.menu[u])<0) save.unlocked.push(g.menu[u]);
       }
       return { name:name, locId:locIdx, genre:g.id, menu:g.menu.slice(),
-        mkt:0, truck:0, ups:{}, employees:{}, supplies:40, reviews:[], served:0, revenue:0 };
+        mkt:0, truck:0, ups:{}, employees:{}, decor:{}, supplies:40, reviews:[], served:0, revenue:0 };
     }
     function isUnlocked(id){ return (save.unlocked||["coffee","toast"]).indexOf(id)>=0; }
+    function decorScore(r){
+      if(!r||!r.decor) return 0;
+      var s=0;
+      for(var i=0;i<DECOR.length;i++) if(r.decor[DECOR[i].id]) s+=DECOR[i].score;
+      return s;
+    }
     function unlockItem(id){
       if(!save.unlocked) save.unlocked=["coffee","toast"];
       if(save.unlocked.indexOf(id)<0) save.unlocked.push(id);
@@ -3158,12 +3282,47 @@
     }
 
     // -------- Draw helpers --------
-    function drawHeader(){
+    function drawHeader(showExit){
       rect(0,0,W,30,"#02030f");
       px_txt("$"+save.cash.toLocaleString(),10,18,9,"#46ff9c","left");
       px_txt("CHAIN "+save.restaurants.length,W/2,18,7,"#9b8fc7");
-      var r=activeR();
-      if(r){ var rt=ratingOf(r); px_txt(r.name.slice(0,12)+(rt?" "+rt.toFixed(1)+"★":""),W-10,18,7,"#ffd23e","right"); }
+      if(showExit){
+        drawExitBtn();
+      } else {
+        var r=activeR();
+        if(r){ var rt=ratingOf(r); px_txt(r.name.slice(0,12)+(rt?" "+rt.toFixed(1)+"★":""),W-10,18,7,"#ffd23e","right"); }
+      }
+    }
+    function drawExitBtn(){
+      rect(W-62,4,58,22,"#3a1a3a");
+      ctx.strokeStyle="#ff8a8a"; ctx.lineWidth=2;
+      ctx.strokeRect(W-62,4,58,22);
+      px_txt("✕ EXIT",W-33,18,8,"#ff8a8a");
+    }
+    function exitBtnClicked(){
+      return IN.pclick && IN.px>W-62 && IN.px<W-4 && IN.py>4 && IN.py<26;
+    }
+    function drawInterior(r){
+      // base scene
+      var g=ctx.createLinearGradient(0,30,0,170);
+      g.addColorStop(0,"#3a2a4a"); g.addColorStop(1,"#5a4a6a");
+      ctx.fillStyle=g; ctx.fillRect(0,30,W,140);
+      rect(0,170,W,50,"#6a4a2a");
+      rect(0,170,W,3,"#8a6a3a");
+      // back kitchen counter outline (drawn behind decor)
+      rect(W-180,150,170,22,"#3a2a2a");
+      rect(W-180,150,170,3,"#5a4a4a");
+      // owned decor layered floor → wall → ceiling
+      var order=["carpet","artwork","tv","bar","plants","jukebox","booths","tables","lights","chandelier"];
+      for(var i=0;i<order.length;i++){
+        if(r.decor && r.decor[order[i]]){
+          var d=null;
+          for(var j=0;j<DECOR.length;j++) if(DECOR[j].id===order[i]){ d=DECOR[j]; break; }
+          if(d) d.place();
+        }
+      }
+      // bottom divider
+      rect(0,220,W,2,"#27e8ff");
     }
 
     function drawCustomer(x,y){
@@ -3416,6 +3575,15 @@
           return;
         }
 
+        // Universal EXIT button — tap the X in the corner to leave any sub-screen
+        if(screen!=="hub" && exitBtnClicked()){
+          if(dayState==="summary"){ save.daysCompleted=(save.daysCompleted||0)+1; }
+          cookActive=false; cust=null; mapConfirm=false;
+          dayState="idle"; dayQuota=0;
+          screen="hub"; sel=0; saveAll();
+          return;
+        }
+
         if(screen==="reset"){
           if(IN.edge.action){ doReset(); return; }
           if(IN.edge.left){ screen="hub"; sel=0; return; }
@@ -3493,7 +3661,7 @@
         }
 
         if(screen==="hub"){
-          var opts=["SERVICE","MENU","STAFF","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
           if(IN.edge.up) sel=(sel+opts.length-1)%opts.length;
           if(IN.edge.down) sel=(sel+1)%opts.length;
           if(IN.edge.action){
@@ -3501,6 +3669,7 @@
             if(o==="SERVICE"){ screen="service"; customerT=1.2; cust=null; cookActive=false; }
             else if(o==="MENU"){ screen="menu"; sel=0; }
             else if(o==="STAFF"){ screen="staff"; sel=0; }
+            else if(o==="INTERIOR"){ screen="interior"; sel=0; }
             else if(o==="SHOP"){ screen="shop"; sel=0; shopItems=buildShopItems(); }
             else if(o==="WORLD"){ screen="world"; worldList=genWorld(); worldSel=0; }
             else if(o==="REVIEWS"){ screen="reviews"; }
@@ -3517,7 +3686,8 @@
           if(dayState==="idle"){
             var r=activeR(), rt=ratingOf(r)||3, loc=LOCS[r.locId];
             var seats=r.ups.seats?1.5:1;
-            var base=loc.dens*mktMult(r)*seats*(1+(rt-3)*0.25);
+            var dec = 1 + decorScore(r)*0.06;     // each decor point = +6% customers
+            var base=loc.dens*mktMult(r)*seats*(1+(rt-3)*0.25)*dec;
             dayQuota=Math.max(3, Math.round(base*5*(0.85+Math.random()*0.3)+2));
             if(r.employees && r.employees.host) dayQuota = Math.round(dayQuota*1.25);
             dayServed=0; dayLost=0; dayRev=0;
@@ -3586,6 +3756,7 @@
         }
 
         if(screen==="staff"){
+          if(exitBtnClicked()){ screen="hub"; sel=0; return; }
           if(IN.edge.up) sel=(sel+EMPLOYEES.length-1)%EMPLOYEES.length;
           if(IN.edge.down) sel=(sel+1)%EMPLOYEES.length;
           if(IN.edge.action){
@@ -3597,6 +3768,25 @@
               rr.employees[emp.id]=true;
               saveAll();
               setMsg("HIRED "+emp.n);
+            } else setMsg("NOT ENOUGH CASH");
+          }
+          if(IN.edge.left){ screen="hub"; sel=0; }
+          return;
+        }
+
+        if(screen==="interior"){
+          if(exitBtnClicked()){ screen="hub"; sel=0; return; }
+          if(IN.edge.up) sel=(sel+DECOR.length-1)%DECOR.length;
+          if(IN.edge.down) sel=(sel+1)%DECOR.length;
+          if(IN.edge.action){
+            var rr2=activeR(), dc=DECOR[sel];
+            if(rr2.decor && rr2.decor[dc.id]) setMsg("ALREADY OWNED");
+            else if(save.cash>=dc.cost){
+              save.cash-=dc.cost;
+              if(!rr2.decor) rr2.decor={};
+              rr2.decor[dc.id]=true;
+              saveAll();
+              setMsg("INSTALLED "+dc.n);
             } else setMsg("NOT ENOUGH CASH");
           }
           if(IN.edge.left){ screen="hub"; sel=0; }
@@ -3655,7 +3845,7 @@
           return;
         }
 
-        drawHeader();
+        drawHeader(screen!=="hub");
 
         if(screen==="map"){
           drawMap();
@@ -3702,7 +3892,7 @@
           px_txt(rat?rat.toFixed(1)+"★":"NO REVIEWS",96,96,7,rat>=4?"#46ff9c":rat>=2.5?"#ffd23e":"#ff8a8a");
           px_txt("SERVED "+r.served,W/2,96,7,"#27e8ff");
           px_txt("SUP "+r.supplies+"/"+maxSupplies(r),W-96,96,7,r.supplies>10?"#fff":"#ff8a8a");
-          var opts=["SERVICE","MENU","STAFF","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
           var top=108, h=16;
           for(var i=0;i<opts.length;i++){
             var y=top+i*h, hi=i===sel;
@@ -3803,6 +3993,28 @@
           }
           px_txt("◄ BACK   A: HIRE",W/2,H-10,7,"#46ff9c");
           if(msgT>0) px_txt(msg,W/2,H-22,7,"#46ff9c");
+          return;
+        }
+
+        if(screen==="interior"){
+          var r=activeR();
+          drawInterior(r);
+          // header info row
+          px_txt("INTERIOR — DECOR +"+decorScore(r),W/2,46,9,"#ffd23e");
+          // decor selector strip below scene
+          var listY=226, h=22, maxV=5;
+          var startI=Math.max(0, Math.min(DECOR.length-maxV, sel-Math.floor(maxV/2)));
+          for(var i=0;i<maxV && (startI+i)<DECOR.length;i++){
+            var idx=startI+i, item=DECOR[idx], y=listY+i*h, hi=idx===sel;
+            var owned = r.decor && r.decor[item.id];
+            var can = owned || save.cash>=item.cost;
+            if(hi) rect(8,y-13,W-16,h,"#1a2350");
+            px_txt(item.n,16,y+2,7,hi?"#fff":(owned?"#46ff9c":(can?"#cdbff0":"#5a4a7a")),"left");
+            px_txt("+"+item.score,180,y+2,6,"#9b6bff","left");
+            if(owned) px_txt("OWNED",W-16,y+2,7,"#46ff9c","right");
+            else px_txt(fmt$(item.cost),W-16,y+2,8,can?"#ffd23e":"#ff8a8a","right");
+          }
+          if(msgT>0) px_txt(msg,W/2,H-6,6,"#46ff9c");
           return;
         }
 

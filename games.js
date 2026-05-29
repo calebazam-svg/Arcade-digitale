@@ -2267,9 +2267,10 @@
 
   /* 25. Diner Empire (offline restaurant tycoon with persistent save) */
   reg("diner",
-  "Restaurant tycoon — progress saves. You have $50,000. Buy a location ($1K dump to $2M villa), pick your menu items, then run SERVICE: customers order, you cook (press A inside the green zone for 5★ reviews + tips). Spend earnings on supplies, trucks, marketing & upgrades. Open more places over time. D-pad moves the cursor, A confirms, ◀ backs out, QUIT in the hub saves and exits.",
+  "Restaurant tycoon — progress saves. You have $50K. Pick a location on the MAP ($1K dump → $2M villa), choose a CUISINE GENRE, NAME your place via the on-screen keyboard, then run SERVICE: customers order from your menu and you cook a multi-station minigame (timing, rhythm taps, precision aim) — better cooking = 5★ reviews + tips. Spend earnings on supplies, trucks, marketing & upgrades. Grow your chain.",
   function(){
     var SAVE_KEY="da_rest_save";
+
     var LOCS=[
       {n:"Abandoned Gas Station", p:1000,    dens:0.35, lux:0, desc:"A dump. Brave eaters only."},
       {n:"Food Truck Stop",       p:5000,    dens:0.70, lux:0, desc:"Truckers want fast & cheap."},
@@ -2280,22 +2281,47 @@
       {n:"Waterfront Bistro",     p:1100000, dens:1.20, lux:4, desc:"Tourists tip well, expect quality."},
       {n:"Hills Villa",           p:2000000, dens:0.90, lux:5, desc:"Elite clientele. Very high standards."}
     ];
-    var ITEMS=[
-      {id:"coffee",  n:"COFFEE",   cost:0, sell:3,  c:1},
-      {id:"toast",   n:"TOAST",    cost:1, sell:4,  c:1},
-      {id:"sandwich",n:"SANDWICH", cost:2, sell:7,  c:1},
-      {id:"salad",   n:"SALAD",    cost:2, sell:9,  c:1},
-      {id:"taco",    n:"TACOS",    cost:2, sell:8,  c:1},
-      {id:"soup",    n:"SOUP",     cost:2, sell:8,  c:1},
-      {id:"burger",  n:"BURGER",   cost:3, sell:11, c:2},
-      {id:"pizza",   n:"PIZZA",    cost:5, sell:16, c:2},
-      {id:"pasta",   n:"PASTA",    cost:4, sell:14, c:2},
-      {id:"ramen",   n:"RAMEN",    cost:3, sell:13, c:2},
-      {id:"cake",    n:"CAKE",     cost:4, sell:12, c:2},
-      {id:"sushi",   n:"SUSHI",    cost:7, sell:24, c:3},
-      {id:"steak",   n:"STEAK",    cost:10,sell:36, c:3},
-      {id:"lobster", n:"LOBSTER",  cost:18,sell:65, c:3}
+
+    var GENRES=[
+      {id:"american", n:"AMERICAN",  c:"#ff3ea5", menu:["burger","sandwich","cake","coffee"]},
+      {id:"italian",  n:"ITALIAN",   c:"#46ff9c", menu:["pizza","pasta","salad","cake"]},
+      {id:"japanese", n:"JAPANESE",  c:"#27e8ff", menu:["sushi","ramen","soup"]},
+      {id:"mexican",  n:"MEXICAN",   c:"#ffd23e", menu:["taco","burger","soup","coffee"]},
+      {id:"french",   n:"FRENCH",    c:"#c77dff", menu:["steak","soup","cake","coffee"]},
+      {id:"fastfood", n:"FAST FOOD", c:"#ff8a3e", menu:["burger","pizza","sandwich","coffee"]},
+      {id:"cafe",     n:"CAFE",      c:"#7dffb0", menu:["coffee","toast","sandwich","cake","salad"]},
+      {id:"seafood",  n:"SEAFOOD",   c:"#5e9bff", menu:["lobster","soup","salad","sushi"]}
     ];
+
+    var STATIONS={
+      pour:  {type:"timing", label:"POUR",   lo:0.50, hi:0.85, spd:0.45},
+      prep:  {type:"rhythm", label:"PREP",   taps:4,  spd:0.34, zoneW:0.05},
+      chop:  {type:"rhythm", label:"CHOP",   taps:5,  spd:0.42, zoneW:0.045},
+      season:{type:"rhythm", label:"SEASON", taps:3,  spd:0.36, zoneW:0.055},
+      cook:  {type:"timing", label:"COOK",   lo:0.55, hi:0.78, spd:0.50},
+      fry:   {type:"timing", label:"FRY",    lo:0.60, hi:0.78, spd:0.55},
+      boil:  {type:"timing", label:"BOIL",   lo:0.50, hi:0.82, spd:0.40},
+      slice: {type:"prec",   label:"SLICE",  spd:0.55, zone:0.08},
+      plate: {type:"prec",   label:"PLATE",  spd:0.45, zone:0.12}
+    };
+
+    var ITEMS=[
+      {id:"coffee",  n:"COFFEE",   cost:0, sell:3,  steps:["pour"]},
+      {id:"toast",   n:"TOAST",    cost:1, sell:4,  steps:["cook"]},
+      {id:"sandwich",n:"SANDWICH", cost:2, sell:7,  steps:["prep","plate"]},
+      {id:"salad",   n:"SALAD",    cost:2, sell:9,  steps:["chop","plate"]},
+      {id:"taco",    n:"TACOS",    cost:2, sell:8,  steps:["prep","plate"]},
+      {id:"soup",    n:"SOUP",     cost:2, sell:8,  steps:["chop","boil"]},
+      {id:"burger",  n:"BURGER",   cost:3, sell:11, steps:["prep","fry","plate"]},
+      {id:"pizza",   n:"PIZZA",    cost:5, sell:16, steps:["prep","cook","slice"]},
+      {id:"pasta",   n:"PASTA",    cost:4, sell:14, steps:["boil","plate","season"]},
+      {id:"ramen",   n:"RAMEN",    cost:3, sell:13, steps:["chop","boil","plate"]},
+      {id:"cake",    n:"CAKE",     cost:4, sell:12, steps:["prep","cook","plate"]},
+      {id:"sushi",   n:"SUSHI",    cost:7, sell:24, steps:["slice","season","plate"]},
+      {id:"steak",   n:"STEAK",    cost:10,sell:36, steps:["season","fry","plate"]},
+      {id:"lobster", n:"LOBSTER",  cost:18,sell:65, steps:["boil","slice","plate"]}
+    ];
+
     var MKT=[
       {n:"NONE",       cost:0,     mult:1.0},
       {n:"LEAFLETS",   cost:500,   mult:1.3},
@@ -2316,15 +2342,193 @@
       {id:"sous",  n:"SOUS CHEF",  cost:25000, desc:"Auto-handles cooking step 1"}
     ];
 
+    // Location pixel-art image renderers
+    function clipBox(x,y,w,h){ ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); }
+    function unclip(){ ctx.restore(); }
+
+    function drawGasStation(x,y,w,h){
+      clipBox(x,y,w,h);
+      rect(x,y,w,h*0.7,"#1a1a2a");
+      rect(x,y+h*0.7,w,h*0.3,"#3a3a2a");
+      rect(x+w*0.1,y+h*0.45,4,h*0.35,"#6a4a2a");
+      rect(x+w*0.04,y+h*0.4,w*0.22,h*0.15,"#aa6a3a");
+      px_txt("GAS",x+w*0.15,y+h*0.5,5,"#1a1a1a");
+      rect(x+w*0.55,y+h*0.55,w*0.12,h*0.25,"#666");
+      rect(x+w*0.56,y+h*0.58,w*0.1,h*0.04,"#222");
+      ctx.strokeStyle="#1a1a1a";ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x+w*0.61,y+h*0.62);ctx.lineTo(x+w*0.7,y+h*0.78);ctx.stroke();
+      ctx.strokeStyle="#3a6a3a";ctx.lineWidth=1;
+      for(var i=0;i<5;i++){
+        var wx=x+w*0.78+i*4;
+        ctx.beginPath();ctx.moveTo(wx,y+h*0.92);ctx.lineTo(wx,y+h*0.82);ctx.stroke();
+      }
+      unclip();
+    }
+    function drawTruckStop(x,y,w,h){
+      clipBox(x,y,w,h);
+      var g=ctx.createLinearGradient(x,y,x,y+h*0.6);
+      g.addColorStop(0,"#3a2a5a"); g.addColorStop(1,"#aa6a4a");
+      ctx.fillStyle=g; ctx.fillRect(x,y,w,h*0.6);
+      rect(x,y+h*0.6,w,h*0.4,"#2a2a2a");
+      rect(x+w*0.15,y+h*0.35,w*0.7,h*0.3,"#ffd23e");
+      rect(x+w*0.1,y+h*0.3,w*0.8,h*0.08,"#ff3ea5");
+      ctx.fillStyle="#1a1a1a";
+      ctx.beginPath();ctx.arc(x+w*0.25,y+h*0.7,h*0.06,0,7);ctx.fill();
+      ctx.beginPath();ctx.arc(x+w*0.75,y+h*0.7,h*0.06,0,7);ctx.fill();
+      rect(x+w*0.18,y+h*0.4,w*0.18,h*0.12,"#27e8ff");
+      px_txt("FOOD",x+w*0.6,y+h*0.5,5,"#1a1a1a");
+      unclip();
+    }
+    function drawStripMall(x,y,w,h){
+      clipBox(x,y,w,h);
+      rect(x,y,w,h*0.5,"#2a3a5a");
+      rect(x,y+h*0.85,w,h*0.15,"#2a2a2a");
+      var pw=w/3;
+      var cols=["#9b6bff","#46ff9c","#ffd23e"];
+      for(var i=0;i<3;i++){
+        rect(x+i*pw,y+h*0.5,pw-1,h*0.35,"#3a2a3a");
+        rect(x+i*pw+2,y+h*0.55,pw-5,4,cols[i]);
+        rect(x+i*pw+pw*0.15,y+h*0.62,pw*0.7,h*0.18,"#0a0613");
+      }
+      ctx.strokeStyle="#fff";ctx.lineWidth=1;ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(x,y+h*0.92);ctx.lineTo(x+w,y+h*0.92);ctx.stroke();ctx.setLineDash([]);
+      unclip();
+    }
+    function drawPlaza(x,y,w,h){
+      clipBox(x,y,w,h);
+      rect(x,y,w,h*0.45,"#2a4a7a");
+      rect(x+w*0.05,y+h*0.3,w*0.9,h*0.5,"#5a5a7a");
+      ctx.fillStyle="#3a2a3a";
+      ctx.beginPath();ctx.moveTo(x+w*0.02,y+h*0.32);ctx.lineTo(x+w*0.5,y+h*0.18);ctx.lineTo(x+w*0.98,y+h*0.32);ctx.closePath();ctx.fill();
+      for(var i=0;i<5;i++){ rect(x+w*(0.15+i*0.15),y+h*0.45,w*0.08,h*0.1,"#ffd23e"); }
+      rect(x+w*0.45,y+h*0.6,w*0.1,h*0.2,"#4a3a3a");
+      rect(x,y+h*0.8,w,h*0.2,"#3a3a3a");
+      ctx.strokeStyle="#fff";ctx.lineWidth=1;
+      for(var i=0;i<4;i++){
+        ctx.beginPath();ctx.moveTo(x+i*w*0.25+w*0.05,y+h*0.85);ctx.lineTo(x+i*w*0.25+w*0.05,y+h*0.95);ctx.stroke();
+      }
+      unclip();
+    }
+    function drawDowntown(x,y,w,h){
+      clipBox(x,y,w,h);
+      var g=ctx.createLinearGradient(x,y,x,y+h);
+      g.addColorStop(0,"#0a0a3a"); g.addColorStop(1,"#3a0a3a");
+      ctx.fillStyle=g; ctx.fillRect(x,y,w,h);
+      var hh=[h*0.5,h*0.7,h*0.45,h*0.6,h*0.55,h*0.4,h*0.65];
+      for(var i=0;i<hh.length;i++){
+        var bx=x+i*(w/hh.length), bw=w/hh.length, bh=hh[i];
+        rect(bx,y+h-bh,bw-2,bh,"#1a1a3a");
+        for(var wy=0;wy<bh/12;wy++)
+          for(var wx=0;wx<2;wx++)
+            if(((i*7+wy*3+wx*11)%5)<2) rect(bx+2+wx*5,y+h-bh+wy*8+4,3,3,"#ffd23e");
+      }
+      rect(x+w*0.3,y+h*0.7,w*0.4,h*0.25,"#1a0613");
+      rect(x+w*0.3,y+h*0.7,w*0.4,4,"#ff3ea5");
+      rect(x+w*0.3,y+h*0.93,w*0.4,4,"#ff3ea5");
+      px_txt("DINER",x+w*0.5,y+h*0.85,6,"#ff3ea5");
+      unclip();
+    }
+    function drawLoft(x,y,w,h){
+      clipBox(x,y,w,h);
+      rect(x,y,w,h,"#9b4a4a");
+      ctx.strokeStyle="#5a2a2a";ctx.lineWidth=1;
+      for(var ry=0;ry<h;ry+=8){
+        var off=(Math.floor(ry/8)%2)*6;
+        for(var rx=-6;rx<w;rx+=12){
+          ctx.strokeRect(x+rx+off,y+ry,12,8);
+        }
+      }
+      rect(x+w*0.1,y+h*0.25,w*0.35,h*0.5,"#27e8ff");
+      rect(x+w*0.55,y+h*0.25,w*0.35,h*0.5,"#27e8ff");
+      ctx.strokeStyle="#1a1a1a";ctx.lineWidth=2;
+      ctx.strokeRect(x+w*0.1,y+h*0.25,w*0.35,h*0.5);
+      ctx.strokeRect(x+w*0.55,y+h*0.25,w*0.35,h*0.5);
+      ctx.beginPath();ctx.moveTo(x+w*0.275,y+h*0.25);ctx.lineTo(x+w*0.275,y+h*0.75);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x+w*0.725,y+h*0.25);ctx.lineTo(x+w*0.725,y+h*0.75);ctx.stroke();
+      ctx.fillStyle="#3a6a3a";ctx.beginPath();ctx.arc(x+w*0.05,y+h*0.85,h*0.08,0,7);ctx.fill();
+      unclip();
+    }
+    function drawWaterfront(x,y,w,h){
+      clipBox(x,y,w,h);
+      var g=ctx.createLinearGradient(x,y,x,y+h*0.6);
+      g.addColorStop(0,"#3a2a6b"); g.addColorStop(1,"#ff8a3e");
+      ctx.fillStyle=g; ctx.fillRect(x,y,w,h*0.6);
+      ctx.fillStyle="#ffd23e";
+      ctx.beginPath();ctx.arc(x+w*0.7,y+h*0.4,h*0.1,0,7);ctx.fill();
+      rect(x,y+h*0.6,w,h*0.4,"#2a4a7a");
+      ctx.strokeStyle="#ffd23e88";ctx.lineWidth=2;
+      for(var i=0;i<6;i++){
+        var wy=y+h*0.65+i*4;
+        ctx.beginPath();ctx.moveTo(x+w*0.6,wy);ctx.lineTo(x+w*0.8,wy);ctx.stroke();
+      }
+      rect(x+w*0.1,y+h*0.45,w*0.35,h*0.2,"#5a3a3a");
+      rect(x+w*0.08,y+h*0.4,w*0.4,h*0.06,"#ff3ea5");
+      rect(x+w*0.1,y+h*0.65,3,h*0.3,"#3a2a1a");
+      rect(x+w*0.42,y+h*0.65,3,h*0.3,"#3a2a1a");
+      unclip();
+    }
+    function drawVilla(x,y,w,h){
+      clipBox(x,y,w,h);
+      var g=ctx.createLinearGradient(x,y,x,y+h);
+      g.addColorStop(0,"#ff8a3e"); g.addColorStop(0.5,"#ff3ea5"); g.addColorStop(1,"#3a1a52");
+      ctx.fillStyle=g; ctx.fillRect(x,y,w,h);
+      ctx.fillStyle="#3a1a3a";
+      ctx.beginPath();
+      ctx.moveTo(x,y+h*0.65);
+      ctx.lineTo(x+w*0.2,y+h*0.4);
+      ctx.lineTo(x+w*0.4,y+h*0.55);
+      ctx.lineTo(x+w*0.7,y+h*0.3);
+      ctx.lineTo(x+w,y+h*0.5);
+      ctx.lineTo(x+w,y+h);
+      ctx.lineTo(x,y+h);
+      ctx.closePath();
+      ctx.fill();
+      rect(x+w*0.35,y+h*0.6,w*0.35,h*0.25,"#eeeedd");
+      ctx.fillStyle="#aa3a3a";
+      ctx.beginPath();
+      ctx.moveTo(x+w*0.32,y+h*0.62);
+      ctx.lineTo(x+w*0.525,y+h*0.5);
+      ctx.lineTo(x+w*0.73,y+h*0.62);
+      ctx.closePath();
+      ctx.fill();
+      rect(x+w*0.4,y+h*0.65,w*0.08,h*0.08,"#27e8ff");
+      rect(x+w*0.57,y+h*0.65,w*0.08,h*0.08,"#27e8ff");
+      rect(x+w*0.49,y+h*0.72,w*0.07,h*0.13,"#4a2a1a");
+      unclip();
+    }
+
+    var LOC_DRAW=[drawGasStation,drawTruckStop,drawStripMall,drawPlaza,drawDowntown,drawLoft,drawWaterfront,drawVilla];
+
+    // map pin positions (canvas coords, map area is y 30-228)
+    var LOC_PINS=[
+      {x:55,  y:198},   // gas station
+      {x:170, y:195},   // food truck
+      {x:240, y:140},   // strip mall
+      {x:355, y:148},   // plaza
+      {x:240, y:80},    // downtown
+      {x:115, y:80},    // loft
+      {x:400, y:198},   // waterfront
+      {x:430, y:55}     // villa
+    ];
+
+    // Virtual keyboard layout: A-Z + space + backspace (28 cells in 7x4 grid)
+    var KB_KEYS=["A","B","C","D","E","F","G",
+                 "H","I","J","K","L","M","N",
+                 "O","P","Q","R","S","T","U",
+                 "V","W","X","Y","Z","_","<"];
+
     function itemById(id){ for(var i=0;i<ITEMS.length;i++) if(ITEMS[i].id===id) return ITEMS[i]; return null; }
+    function genreById(id){ for(var i=0;i<GENRES.length;i++) if(GENRES[i].id===id) return GENRES[i]; return null; }
+
     function loadSave(){
       try{var s=localStorage.getItem(SAVE_KEY); if(s){var d=JSON.parse(s); if(d&&typeof d.cash==="number"&&Array.isArray(d.restaurants)) return d;}}catch(e){}
       return null;
     }
     function saveAll(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){} }
-    function freshSave(){ return {v:1, cash:50000, restaurants:[], activeIdx:-1}; }
-    function newRestaurant(locIdx, name){
-      return { name:name, locId:locIdx, menu:["coffee","sandwich","burger"],
+    function freshSave(){ return {v:2, cash:50000, restaurants:[], activeIdx:-1}; }
+    function newRestaurant(locIdx, genreIdx, name){
+      var g=GENRES[genreIdx];
+      return { name:name, locId:locIdx, genre:g.id, menu:g.menu.slice(),
         mkt:0, truck:0, ups:{}, supplies:40, reviews:[], served:0, revenue:0 };
     }
     function activeR(){ return save && save.restaurants[save.activeIdx]; }
@@ -2336,13 +2540,14 @@
       if(n>=10000) return "$"+(n/1000).toFixed(0)+"K"; if(n>=1000) return "$"+(n/1000).toFixed(1)+"K"; return "$"+n; }
 
     var save=loadSave();
-    var screen, sel=0, msg="", msgT=0, nameBuf="", typingFor=null;
+    var screen, sel=0, msg="", msgT=0, nameBuf="";
+    var kbSel=0, genreSel=0, mapSel=0, pendingLocIdx=-1;
     var shopItems=[];
     var cust=null, customerT=0;
-    var cookActive=false, cookStep=0, cookSteps=1, cookBar=0, cookGreenLo=0.55, cookGreenHi=0.78, cookSpeed=0.5, cookResults=[];
+    var cookActive=false, cookStepIdx=0, cookSteps=1, cookStation=null, cookStepData=null, cookResults=[];
 
     if(!save){ screen="intro"; }
-    else if(save.activeIdx<0||!save.restaurants.length){ screen="buy"; }
+    else if(save.activeIdx<0||!save.restaurants.length){ screen="map"; }
     else { screen="hub"; }
 
     function setMsg(s){ msg=s; msgT=2.0; }
@@ -2352,23 +2557,86 @@
       return null;
     }
     function nextCustomer(){ var r=activeR(); cust = (r&&r.supplies>0) ? genCustomer(r) : null; }
+
+    function loadCookStep(){
+      var item=cust.item, stId=item.steps[cookStepIdx];
+      cookStation=STATIONS[stId];
+      var r=activeR(), pro=!!r.ups.stove;
+      var t=cookStation.type;
+      if(t==="timing"){
+        cookStepData={ bar:0,
+          lo: cookStation.lo - (pro?0.06:0),
+          hi: cookStation.hi + (pro?0.06:0),
+          spd: cookStation.spd * (pro?0.82:1) };
+      } else if(t==="rhythm"){
+        cookStepData={ taps:cookStation.taps, done:0, results:[], pos:0,
+          spd: cookStation.spd * (pro?0.85:1),
+          zoneW: cookStation.zoneW * (pro?1.4:1) };
+      } else if(t==="prec"){
+        cookStepData={ pos:0, dir:1,
+          spd: cookStation.spd * (pro?0.85:1),
+          zone: cookStation.zone * (pro?1.4:1),
+          target: 0.4 + Math.random()*0.2 };
+      }
+    }
+
     function startCook(){
       var r=activeR(); if(!cust) return;
       if(r.supplies<=0){ setMsg("OUT OF SUPPLIES"); return; }
-      cookActive=true; cookStep=0; cookSteps=cust.item.c; cookBar=0; cookResults=[];
-      if(r.ups.sous && cookSteps>1){ cookResults.push(0.85); cookStep=1; }
-      var pro=!!r.ups.stove;
-      cookGreenLo=pro?0.46:0.58;
-      cookGreenHi=pro?0.80:0.74;
-      cookSpeed  =pro?0.36:0.55;
+      cookActive=true; cookStepIdx=0; cookSteps=cust.item.steps.length; cookResults=[];
+      if(r.ups.sous && cookSteps>1){ cookResults.push(0.85); cookStepIdx=1; }
+      loadCookStep();
     }
-    function evalStep(){
-      var center=(cookGreenLo+cookGreenHi)/2, halfZone=(cookGreenHi-cookGreenLo)/2;
-      var dist=Math.abs(cookBar-center);
-      var acc = dist<=halfZone ? 1 : Math.max(0, 1-(dist-halfZone)/0.3);
-      cookResults.push(acc); cookBar=0; cookStep++;
-      if(cookStep>=cookSteps) endCook();
+
+    function recordStepResult(acc){
+      cookResults.push(acc);
+      cookStepIdx++;
+      if(cookStepIdx>=cookSteps) endCook();
+      else loadCookStep();
     }
+
+    function tickCook(dt){
+      var t=cookStation.type, d=cookStepData;
+      if(t==="timing"){
+        d.bar += d.spd*dt;
+        if(d.bar>=1){ recordStepResult(0); return; }
+        if(IN.edge.action){
+          var center=(d.lo+d.hi)/2, halfZone=(d.hi-d.lo)/2;
+          var dist=Math.abs(d.bar-center);
+          var acc = dist<=halfZone ? 1 : Math.max(0, 1-(dist-halfZone)/0.3);
+          recordStepResult(acc);
+        }
+      } else if(t==="prec"){
+        d.pos += d.dir*d.spd*dt;
+        if(d.pos>=1){ d.pos=1; d.dir=-1; }
+        if(d.pos<=0){ d.pos=0; d.dir=1; }
+        if(IN.edge.action){
+          var dist=Math.abs(d.pos-d.target);
+          var acc = dist<=d.zone ? 1 : Math.max(0, 1-(dist-d.zone)/0.3);
+          recordStepResult(acc);
+        }
+      } else if(t==="rhythm"){
+        d.pos += d.spd*dt;
+        while(d.done < d.taps){
+          var tgt=(d.done+1)/(d.taps+1);
+          if(d.pos > tgt + d.zoneW){ d.results.push(0); d.done++; }
+          else break;
+        }
+        if(IN.edge.action && d.done < d.taps){
+          var tgt2=(d.done+1)/(d.taps+1);
+          var dist2=Math.abs(d.pos-tgt2);
+          var acc2 = dist2<=d.zoneW ? 1 : Math.max(0, 1-(dist2-d.zoneW)/0.1);
+          d.results.push(acc2); d.done++;
+        }
+        if(d.done>=d.taps || d.pos>=1){
+          while(d.results.length<d.taps) d.results.push(0);
+          var s=0;
+          for(var i=0;i<d.taps;i++) s+=d.results[i];
+          recordStepResult(s/d.taps);
+        }
+      }
+    }
+
     function endCook(){
       cookActive=false;
       var r=activeR();
@@ -2389,6 +2657,7 @@
       cust=null;
       saveAll();
     }
+
     function buildShopItems(){
       var items=[], r=activeR(), bulk=20, sCost=bulk*1;
       items.push({type:"sup", label:"SUPPLIES +"+bulk, sub:"have "+r.supplies+"/"+maxSupplies(r), cost:sCost});
@@ -2412,10 +2681,13 @@
       else if(it.type==="up"){ save.cash-=it.cost; r.ups[it.upId]=true; }
       saveAll(); return true;
     }
-    function commitTyping(){
-      if(typingFor==="rename"){ var r=activeR(); if(r && nameBuf.trim()){ r.name=nameBuf.trim().toUpperCase(); saveAll(); setMsg("RENAMED"); } }
-      typingFor=null; nameBuf="";
+    function commitName(){
+      var r=activeR();
+      if(r && nameBuf.trim()){ r.name=nameBuf.trim().toUpperCase(); saveAll(); setMsg("RENAMED"); }
+      nameBuf=""; kbSel=0;
+      screen="hub"; sel=0;
     }
+
     function drawHeader(){
       rect(0,0,W,30,"#02030f");
       px_txt("$"+save.cash.toLocaleString(),10,18,9,"#46ff9c","left");
@@ -2423,6 +2695,7 @@
       var r=activeR();
       if(r){ var rt=ratingOf(r); px_txt(r.name.slice(0,12)+(rt?" "+rt.toFixed(1)+"★":""),W-10,18,7,"#ffd23e","right"); }
     }
+
     function drawCustomer(x,y){
       rect(x-12,y-30,24,4,"#9b6bff");
       ctx.fillStyle="#ffd9a8";ctx.beginPath();ctx.arc(x,y-16,12,0,7);ctx.fill();
@@ -2430,20 +2703,147 @@
       ctx.strokeStyle="#0a0613";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y-14,5,0.2,Math.PI-0.2);ctx.stroke();
       rect(x-14,y-4,28,30,"#27e8ff");
     }
-    function drawCookBar(){
-      px_txt("STEP "+(cookStep+1)+"/"+cookSteps,W/2,82,9,"#ffd23e");
-      var bw=320, bh=28, bx=W/2-bw/2, by=130;
+
+    function drawCookStep(){
+      var t=cookStation.type, d=cookStepData;
+      px_txt(cookStation.label+" - STEP "+(cookStepIdx+1)+"/"+cookSteps, W/2, 82, 9, "#ffd23e");
+      var bw=320, bh=28, bx=W/2-bw/2, by=140;
       rect(bx,by,bw,bh,"#160a26");
       ctx.strokeStyle="#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
-      rect(bx+cookGreenLo*bw, by, (cookGreenHi-cookGreenLo)*bw, bh, "#46ff9c");
-      rect(bx+cookBar*bw-2, by-4, 4, bh+8, "#27e8ff");
-      px_txt("PRESS A IN THE GREEN!",W/2,184,9,"#46ff9c");
+      if(t==="timing"){
+        rect(bx+d.lo*bw, by, (d.hi-d.lo)*bw, bh, "#46ff9c");
+        rect(bx+d.bar*bw-2, by-4, 4, bh+8, "#27e8ff");
+        px_txt("PRESS A IN THE GREEN!",W/2,194,9,"#46ff9c");
+      } else if(t==="prec"){
+        rect(bx+(d.target-d.zone)*bw, by, d.zone*2*bw, bh, "#46ff9c");
+        rect(bx+d.pos*bw-2, by-4, 4, bh+8, "#27e8ff");
+        px_txt("PRESS A WHEN ON TARGET!",W/2,194,9,"#46ff9c");
+      } else if(t==="rhythm"){
+        for(var i=0;i<d.taps;i++){
+          var tgt=(i+1)/(d.taps+1);
+          var col = i<d.done
+            ? (d.results[i]>=0.7?"#46ff9c":d.results[i]>0?"#ffd23e":"#ff3ea5")
+            : "#ffd23e";
+          rect(bx+tgt*bw-2, by-6, 4, bh+12, col);
+        }
+        rect(bx+d.pos*bw-2, by-4, 4, bh+8, "#27e8ff");
+        px_txt("TAP A ON EACH MARKER!",W/2,194,9,"#46ff9c");
+        px_txt("HITS "+d.done+"/"+d.taps,W/2,212,7,"#9b8fc7");
+      }
     }
 
-    return { score:0, over:false,
+    function drawMap(){
+      var top=30, bot=228;
+      var g=ctx.createLinearGradient(0,top,0,bot);
+      g.addColorStop(0,"#0a1430"); g.addColorStop(0.5,"#1a0e30"); g.addColorStop(1,"#0a0613");
+      ctx.fillStyle=g; ctx.fillRect(0,top,W,bot-top);
+      // hills top right
+      ctx.fillStyle="#2a1a3a";
+      ctx.beginPath();ctx.moveTo(280,top+30);ctx.lineTo(360,top+10);ctx.lineTo(420,top+18);ctx.lineTo(W,top+38);ctx.lineTo(W,top+60);ctx.lineTo(280,top+60);ctx.closePath();ctx.fill();
+      // street grid
+      ctx.strokeStyle="rgba(155,107,255,0.18)";ctx.lineWidth=1;
+      for(var x=0; x<W; x+=40) { ctx.beginPath(); ctx.moveTo(x,top+60); ctx.lineTo(x,bot-25); ctx.stroke(); }
+      for(var y=top+60; y<=bot-25; y+=22) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+      // water bottom
+      rect(0,bot-25,W,25,"#1a3a5a");
+      ctx.strokeStyle="rgba(39,232,255,0.4)";ctx.lineWidth=1;
+      for(var i=0;i<2;i++){
+        var wy=bot-18+i*8;
+        ctx.beginPath();
+        for(var wx=0;wx<W;wx+=14){ ctx.lineTo(wx+7, wy + (i%2)*2); }
+        ctx.stroke();
+      }
+      // wasteland bottom-left
+      ctx.fillStyle="#3a2a1a";
+      ctx.fillRect(0,bot-25,120,25);
+      // pins
+      for(var i=0; i<LOC_PINS.length; i++){
+        var pin=LOC_PINS[i], can=save.cash>=LOCS[i].p, hi=i===mapSel;
+        ctx.fillStyle = can ? (hi?"#46ff9c":"#ffd23e") : "#ff3ea5";
+        ctx.beginPath(); ctx.arc(pin.x, pin.y, hi?7:5, 0, 7); ctx.fill();
+        if(hi){
+          ctx.strokeStyle="#fff";ctx.lineWidth=2;
+          ctx.beginPath();ctx.arc(pin.x,pin.y,11,0,7);ctx.stroke();
+        }
+        px_txt(LOCS[i].n.slice(0,5).toUpperCase(), pin.x, pin.y-12, 5, can?"#fff":"#ff8a8a");
+      }
+      px_txt("PICK A LOCATION",W/2,46,10,"#27e8ff");
+    }
+
+    function drawMapDetail(){
+      var py=232, ph=H-py-8;
+      rect(0,py-2,W,2,"#27e8ff");
+      rect(0,py,W,ph,"#02030f");
+      var ix=8,iy=py+8,iw=112,ih=ph-16;
+      rect(ix,iy,iw,ih,"#0a0613");
+      ctx.strokeStyle="#3a2a6b";ctx.lineWidth=1;ctx.strokeRect(ix,iy,iw,ih);
+      LOC_DRAW[mapSel](ix,iy,iw,ih);
+      var tx=ix+iw+10;
+      var l=LOCS[mapSel];
+      px_txt(l.n,tx,py+22,9,"#ffd23e","left");
+      px_txt(fmt$(l.p),tx,py+42,11,save.cash>=l.p?"#46ff9c":"#ff8a8a","left");
+      var words=l.desc.split(" "), line="", lineY=py+60;
+      for(var i=0;i<words.length;i++){
+        if((line+" "+words[i]).length > 32){
+          px_txt(line,tx,lineY,6,"#cdbff0","left");
+          line=words[i]; lineY+=11;
+        } else {
+          line = line ? line+" "+words[i] : words[i];
+        }
+      }
+      if(line) px_txt(line,tx,lineY,6,"#cdbff0","left");
+      var canBuy=save.cash>=l.p;
+      px_txt(canBuy?"A: BUY":"NOT ENOUGH",tx,py+ph-8,7,canBuy?"#46ff9c":"#ff3ea5","left");
+      px_txt("◄ ► / ▲ ▼ TO PICK",W/2,py+ph-2,5,"#5a7a9a");
+    }
+
+    function drawGenreScreen(){
+      px_txt("CHOOSE YOUR CUISINE",W/2,46,11,"#ffd23e");
+      var cw=110, ch=72;
+      for(var i=0;i<GENRES.length;i++){
+        var col=i%4, row=Math.floor(i/4);
+        var bx=10+col*(cw+6), by=72+row*(ch+8);
+        var hi=i===genreSel, gn=GENRES[i];
+        rect(bx,by,cw,ch,hi?"#1a2350":"#160a26");
+        ctx.strokeStyle=hi?gn.c:"#3a2a6b";ctx.lineWidth=2;ctx.strokeRect(bx,by,cw,ch);
+        ctx.fillStyle=gn.c;
+        rect(bx+cw/2-12,by+8,24,24,gn.c);
+        px_txt(gn.n,bx+cw/2,by+ch-22,7,hi?"#fff":"#cdbff0");
+        var preview="";
+        for(var k=0;k<gn.menu.length&&k<3;k++){ var it=itemById(gn.menu[k]); if(it){ preview += (k?" ":"")+it.n.slice(0,3); } }
+        px_txt(preview,bx+cw/2,by+ch-8,5,"#9b8fc7");
+      }
+      px_txt("◄ ► ▲ ▼   A: SELECT",W/2,H-14,7,"#46ff9c");
+    }
+
+    function drawKeyboard(){
+      rect(W/2-160,46,320,30,"#160a26");
+      ctx.strokeStyle="#27e8ff";ctx.lineWidth=2;ctx.strokeRect(W/2-160,46,320,30);
+      px_txt((nameBuf||"")+"_",W/2,68,11,"#fff");
+      var kbY=92, cellW=(W-32)/7, cellH=32;
+      for(var i=0;i<28;i++){
+        var col=i%7, row=Math.floor(i/7);
+        var x=16+col*cellW, y=kbY+row*cellH;
+        var hi=i===kbSel;
+        rect(x+1,y+1,cellW-2,cellH-2,hi?"#1a3a52":"#160a26");
+        ctx.strokeStyle=hi?"#27e8ff":"#3a2a6b";ctx.lineWidth=1.5;ctx.strokeRect(x+1,y+1,cellW-2,cellH-2);
+        var c=KB_KEYS[i];
+        var label = c==="<" ? "DEL" : c==="_" ? "SP" : c;
+        px_txt(label, x+cellW/2, y+cellH/2+5, c.length>1?7:11, hi?"#fff":"#cdbff0");
+      }
+      var okY = kbY + 4*cellH + 8, okW = 160, okX = W/2-okW/2, okH = 26;
+      var okHi = kbSel === -1;
+      rect(okX,okY,okW,okH,okHi?"#1a3a20":"#10241a");
+      ctx.strokeStyle=okHi?"#46ff9c":"#3a2a6b";ctx.lineWidth=2;
+      ctx.strokeRect(okX,okY,okW,okH);
+      px_txt("CONFIRM NAME",W/2,okY+18,9,okHi?"#fff":"#46ff9c");
+    }
+
+    return {
+      score:0, over:false,
       onkey:function(k){
-        if(typingFor){
-          if(k==="ENTER") commitTyping();
+        if(screen==="rename"){
+          if(k==="ENTER") commitName();
           else if(k==="BACK") nameBuf=nameBuf.slice(0,-1);
           else if(nameBuf.length<16 && /^[A-Z]$/.test(k)) nameBuf+=k;
           return;
@@ -2453,29 +2853,67 @@
       update:function(dt){
         if(msgT>0) msgT-=dt;
         this.score = netWorth();
-        if(typingFor){ if(IN.edge.action) commitTyping(); return; }
 
         if(screen==="intro"){
-          if(IN.edge.action){ save=freshSave(); saveAll(); screen="buy"; sel=0; }
+          if(IN.edge.action){ save=freshSave(); saveAll(); screen="map"; mapSel=0; }
           return;
         }
-        if(screen==="buy"){
-          if(IN.edge.up) sel=(sel+LOCS.length-1)%LOCS.length;
-          if(IN.edge.down) sel=(sel+1)%LOCS.length;
+
+        if(screen==="map"){
+          if(IN.edge.up||IN.edge.left) mapSel=(mapSel+LOCS.length-1)%LOCS.length;
+          if(IN.edge.down||IN.edge.right) mapSel=(mapSel+1)%LOCS.length;
           if(IN.edge.action){
-            var l=LOCS[sel];
+            var l=LOCS[mapSel];
             if(save.cash>=l.p){
               save.cash-=l.p;
-              var r=newRestaurant(sel,"RESTAURANT "+(save.restaurants.length+1));
-              save.restaurants.push(r); save.activeIdx=save.restaurants.length-1; saveAll();
-              screen="hub"; sel=0;
-              typingFor="rename"; nameBuf="";
-              setMsg("BOUGHT! NAME YOUR PLACE");
+              pendingLocIdx=mapSel;
+              genreSel=0;
+              screen="genre";
+              saveAll();
+              setMsg("LOCATION BOUGHT — PICK A CUISINE");
             } else setMsg("NOT ENOUGH CASH");
           }
-          if(IN.edge.left && save.activeIdx>=0){ screen="hub"; sel=0; }
           return;
         }
+
+        if(screen==="genre"){
+          if(IN.edge.left) genreSel=(genreSel+GENRES.length-1)%GENRES.length;
+          if(IN.edge.right) genreSel=(genreSel+1)%GENRES.length;
+          if(IN.edge.up) genreSel=(genreSel+GENRES.length-4)%GENRES.length;
+          if(IN.edge.down) genreSel=(genreSel+4)%GENRES.length;
+          if(IN.edge.action){
+            var r=newRestaurant(pendingLocIdx, genreSel, "RESTAURANT "+(save.restaurants.length+1));
+            save.restaurants.push(r);
+            save.activeIdx=save.restaurants.length-1;
+            saveAll();
+            screen="rename"; kbSel=0; nameBuf="";
+          }
+          return;
+        }
+
+        if(screen==="rename"){
+          if(kbSel===-1){
+            if(IN.edge.up) kbSel=24;
+            if(IN.edge.action) commitName();
+          } else {
+            var col=kbSel%7, row=Math.floor(kbSel/7);
+            if(IN.edge.left) kbSel = row*7 + (col===0?6:col-1);
+            if(IN.edge.right) kbSel = row*7 + (col===6?0:col+1);
+            if(IN.edge.up && row>0) kbSel-=7;
+            if(IN.edge.down){
+              if(row<3) kbSel+=7;
+              else kbSel=-1;
+            }
+            if(IN.edge.action){
+              var c=KB_KEYS[kbSel];
+              if(c==="<") nameBuf=nameBuf.slice(0,-1);
+              else if(c==="_"){ if(nameBuf.length<16) nameBuf+=" "; }
+              else if(nameBuf.length<16) nameBuf+=c;
+            }
+          }
+          return;
+        }
+
         if(screen==="hub"){
           var opts=["SERVICE","MENU","SHOP","REVIEWS","TRAVEL","BUY LOCATION","RENAME","QUIT"];
           if(IN.edge.up) sel=(sel+opts.length-1)%opts.length;
@@ -2487,18 +2925,17 @@
             else if(o==="SHOP"){ screen="shop"; sel=0; shopItems=buildShopItems(); }
             else if(o==="REVIEWS"){ screen="reviews"; }
             else if(o==="TRAVEL"){ screen="travel"; sel=save.activeIdx; }
-            else if(o==="BUY LOCATION"){ screen="buy"; sel=0; }
-            else if(o==="RENAME"){ typingFor="rename"; nameBuf=activeR().name; }
+            else if(o==="BUY LOCATION"){ screen="map"; mapSel=0; }
+            else if(o==="RENAME"){ screen="rename"; kbSel=0; nameBuf=activeR().name||""; }
             else if(o==="QUIT"){ saveAll(); this.over=true; }
           }
           return;
         }
+
         if(screen==="service"){
           if(IN.edge.left){ screen="hub"; sel=0; cookActive=false; cust=null; saveAll(); return; }
           if(cookActive){
-            cookBar += cookSpeed*dt;
-            if(cookBar>=1){ cookResults.push(0); cookBar=0; cookStep++; if(cookStep>=cookSteps) endCook(); }
-            if(IN.edge.action) evalStep();
+            tickCook(dt);
           } else if(cust){
             if(IN.edge.action) startCook();
           } else {
@@ -2513,6 +2950,7 @@
           }
           return;
         }
+
         if(screen==="menu"){
           if(IN.edge.up) sel=(sel+ITEMS.length-1)%ITEMS.length;
           if(IN.edge.down) sel=(sel+1)%ITEMS.length;
@@ -2525,6 +2963,7 @@
           if(IN.edge.left){ screen="hub"; sel=0; }
           return;
         }
+
         if(screen==="shop"){
           if(IN.edge.up) sel=(sel+shopItems.length-1)%shopItems.length;
           if(IN.edge.down) sel=(sel+1)%shopItems.length;
@@ -2536,12 +2975,14 @@
           if(IN.edge.left){ screen="hub"; sel=0; }
           return;
         }
+
         if(screen==="reviews"){
           if(IN.edge.left||IN.edge.action){ screen="hub"; sel=0; }
           return;
         }
+
         if(screen==="travel"){
-          if(!save.restaurants.length){ screen="buy"; sel=0; return; }
+          if(!save.restaurants.length){ screen="map"; mapSel=0; return; }
           if(IN.edge.up) sel=(sel+save.restaurants.length-1)%save.restaurants.length;
           if(IN.edge.down) sel=(sel+1)%save.restaurants.length;
           if(IN.edge.action){ save.activeIdx=sel; saveAll(); screen="hub"; sel=0; setMsg("TRAVELED"); }
@@ -2551,46 +2992,44 @@
       },
       draw:function(){
         clear("#0a0820","#160a26");
-        if(typingFor){
-          rect(0,0,W,H,"#0a0613");
-          px_txt("NAME YOUR RESTAURANT",W/2,80,11,"#ffd23e");
-          rect(W/2-150,130,300,40,"#160a26");
-          ctx.strokeStyle="#27e8ff";ctx.lineWidth=2;ctx.strokeRect(W/2-150,130,300,40);
-          px_txt(nameBuf+"_",W/2,158,12,"#fff");
-          px_txt("TYPE LETTERS - BACKSPACE - ENTER",W/2,210,7,"#9b8fc7");
-          px_txt("(A button also confirms)",W/2,224,6,"#5a7a9a");
-          return;
-        }
+
         if(screen==="intro"){
           px_txt("DINER EMPIRE",W/2,80,18,"#ffd23e");
           px_txt("OFFLINE RESTAURANT TYCOON",W/2,110,7,"#27e8ff");
           px_txt("Your progress saves automatically.",W/2,150,8,"#46ff9c");
           px_txt("Start with $50,000.",W/2,170,8,"#fff");
-          px_txt("Buy a location, customise the menu,",W/2,196,7,"#cdbff0");
-          px_txt("cook customer orders, earn reviews,",W/2,210,7,"#cdbff0");
-          px_txt("grow your chain.",W/2,224,7,"#cdbff0");
+          px_txt("Pick a location on the map,",W/2,196,7,"#cdbff0");
+          px_txt("choose a cuisine, name your place,",W/2,210,7,"#cdbff0");
+          px_txt("cook orders, grow your chain.",W/2,224,7,"#cdbff0");
           px_txt("PRESS A TO BEGIN",W/2,272,11,"#46ff9c");
           return;
         }
+
         drawHeader();
-        if(screen==="buy"){
-          px_txt("BUY A LOCATION",W/2,46,11,"#27e8ff");
-          var top=70, h=22;
-          for(var i=0;i<LOCS.length;i++){
-            var y=top+i*h, hi=i===sel, can=save.cash>=LOCS[i].p;
-            if(hi) rect(8,y-12,W-16,h,"#1a2350");
-            px_txt(LOCS[i].n,16,y+3,8,hi?"#fff":(can?"#cdbff0":"#5a4a7a"),"left");
-            px_txt(fmt$(LOCS[i].p),W-16,y+3,8,can?"#ffd23e":"#ff8a8a","right");
-          }
-          px_txt(LOCS[sel].desc,W/2,H-26,7,"#9b8fc7");
-          px_txt(save.activeIdx>=0?"◀ BACK   A: BUY":"A: BUY",W/2,H-10,7,"#46ff9c");
-          if(msgT>0) px_txt(msg,W/2,H-40,7,"#ff8a8a");
+
+        if(screen==="map"){
+          drawMap();
+          drawMapDetail();
+          if(msgT>0) px_txt(msg,W/2,H-2,6,"#ff8a8a");
           return;
         }
+
+        if(screen==="genre"){
+          drawGenreScreen();
+          return;
+        }
+
+        if(screen==="rename"){
+          px_txt("NAME YOUR RESTAURANT",W/2,42,10,"#ffd23e");
+          drawKeyboard();
+          return;
+        }
+
         if(screen==="hub"){
           var r=activeR();
-          px_txt(r.name.toUpperCase().slice(0,20),W/2,52,11,"#ffd23e");
-          px_txt(LOCS[r.locId].n,W/2,72,7,"#9b8fc7");
+          var rg=genreById(r.genre);
+          px_txt((r.name||"UNNAMED").toUpperCase().slice(0,20),W/2,52,11,"#ffd23e");
+          px_txt(LOCS[r.locId].n+(rg?" - "+rg.n:""),W/2,72,7,"#9b8fc7");
           var rat=ratingOf(r);
           px_txt(rat?rat.toFixed(1)+"★":"NO REVIEWS",98,94,7,rat>=4?"#46ff9c":rat>=2.5?"#ffd23e":"#ff8a8a");
           px_txt("SERVED "+r.served,W/2,94,7,"#27e8ff");
@@ -2605,17 +3044,24 @@
           if(msgT>0) px_txt(msg,W/2,H-10,7,"#46ff9c");
           return;
         }
+
         if(screen==="service"){
           var r=activeR();
           rect(0,30,W,H-30,"#080518");
           rect(0,200,W,4,"#3a2a6b");
           px_txt(r.name.toUpperCase().slice(0,18),W/2,52,9,"#ffd23e");
-          px_txt("◀ EXIT",80,H-10,7,"#9b8fc7","left");
+          px_txt("◄ EXIT",80,H-10,7,"#9b8fc7","left");
           px_txt("SUP "+r.supplies,W-12,H-10,7,r.supplies>10?"#27e8ff":"#ff8a8a","right");
-          if(cookActive) drawCookBar();
+          if(cookActive) drawCookStep();
           else if(cust){
             drawCustomer(W/2,178);
             px_txt('"'+cust.item.n+', PLEASE"',W/2,108,10,"#fff");
+            var stepsStr="";
+            for(var k=0;k<cust.item.steps.length;k++){
+              if(k) stepsStr+=" -> ";
+              stepsStr+=STATIONS[cust.item.steps[k]].label;
+            }
+            px_txt(stepsStr,W/2,124,6,"#9b8fc7");
             px_txt("PRESS A TO COOK",W/2,240,9,"#46ff9c");
           } else {
             px_txt("WAITING FOR A CUSTOMER...",W/2,160,9,"#9b8fc7");
@@ -2624,6 +3070,7 @@
           if(msgT>0) px_txt(msg,W/2,80,11,msg.indexOf("★")>=0?"#ffd23e":"#46ff9c");
           return;
         }
+
         if(screen==="menu"){
           px_txt("MENU EDITOR",W/2,46,11,"#27e8ff");
           var r=activeR();
@@ -2632,12 +3079,13 @@
             var y=top+i*h, hi=i===sel, on=r.menu.indexOf(ITEMS[i].id)>=0;
             if(hi) rect(8,y-12,W-16,h,"#1a2350");
             px_txt((on?"[X] ":"[ ] ")+ITEMS[i].n,20,y+3,8,on?"#46ff9c":"#9b8fc7","left");
-            px_txt("$"+ITEMS[i].sell+"  c"+ITEMS[i].c,W-20,y+3,7,"#ffd23e","right");
+            px_txt("$"+ITEMS[i].sell+"  ("+ITEMS[i].steps.length+" STEP)",W-20,y+3,6,"#ffd23e","right");
           }
-          px_txt("◀ BACK   A: TOGGLE",W/2,H-10,7,"#46ff9c");
+          px_txt("◄ BACK   A: TOGGLE",W/2,H-10,7,"#46ff9c");
           if(msgT>0) px_txt(msg,W/2,H-22,7,"#ff8a8a");
           return;
         }
+
         if(screen==="shop"){
           px_txt("SHOP & UPGRADES",W/2,46,11,"#27e8ff");
           var top=70, h=20;
@@ -2651,6 +3099,7 @@
           if(msgT>0) px_txt(msg,W/2,H-10,7,"#46ff9c");
           return;
         }
+
         if(screen==="reviews"){
           px_txt("RECENT REVIEWS",W/2,46,11,"#27e8ff");
           var r=activeR(), revs=r.reviews.slice().reverse();
@@ -2666,27 +3115,27 @@
               px_txt((it?it.n:"")+" - "+blurb,90,y+3,7,"#cdbff0","left");
             }
           }
-          px_txt("◀ / A: BACK",W/2,H-10,8,"#46ff9c");
+          px_txt("◄ / A: BACK",W/2,H-10,8,"#46ff9c");
           return;
         }
+
         if(screen==="travel"){
           px_txt("YOUR RESTAURANTS",W/2,46,11,"#27e8ff");
           var top=70, h=24;
           for(var i=0;i<save.restaurants.length;i++){
             var R=save.restaurants[i], y=top+i*h, hi=i===sel, cur=i===save.activeIdx;
             if(hi) rect(8,y-13,W-16,h,"#1a2350");
-            px_txt((cur?"▶ ":"")+R.name,16,y+2,8,hi?"#fff":"#cdbff0","left");
+            px_txt((cur?"> ":"")+R.name,16,y+2,8,hi?"#fff":"#cdbff0","left");
             px_txt(LOCS[R.locId].n,16,y+14,6,"#9b8fc7","left");
             var rt=ratingOf(R);
             px_txt(rt?rt.toFixed(1)+"★":"--",W-16,y+2,8,"#ffd23e","right");
           }
-          px_txt("◀ BACK   A: TRAVEL",W/2,H-10,7,"#46ff9c");
+          px_txt("◄ BACK   A: TRAVEL",W/2,H-10,7,"#46ff9c");
           return;
         }
       }
     };
   });
-
   /* Mystery handled in startGame() */
 
   /* ════════════════════ LOOP / MODAL ════════════════════ */

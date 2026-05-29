@@ -2298,16 +2298,118 @@
     ];
 
     var STATIONS={
-      pour:  {type:"timing", label:"POUR",   lo:0.50, hi:0.85, spd:0.45},
-      prep:  {type:"rhythm", label:"PREP",   taps:4,  spd:0.34, zoneW:0.05},
-      chop:  {type:"rhythm", label:"CHOP",   taps:5,  spd:0.42, zoneW:0.045},
-      season:{type:"rhythm", label:"SEASON", taps:3,  spd:0.36, zoneW:0.055},
-      cook:  {type:"timing", label:"COOK",   lo:0.55, hi:0.78, spd:0.50},
-      fry:   {type:"timing", label:"FRY",    lo:0.60, hi:0.78, spd:0.55},
-      boil:  {type:"timing", label:"BOIL",   lo:0.50, hi:0.82, spd:0.40},
-      slice: {type:"prec",   label:"SLICE",  spd:0.55, zone:0.08},
-      plate: {type:"prec",   label:"PLATE",  spd:0.45, zone:0.12}
+      pour:  {type:"timing", label:"POUR",   lo:0.50, hi:0.85, spd:0.45, icon:"coffeepot"},
+      prep:  {type:"rhythm", label:"PREP",   taps:4,  spd:0.34, zoneW:0.05, icon:"board"},
+      chop:  {type:"rhythm", label:"CHOP",   taps:5,  spd:0.42, zoneW:0.045, icon:"knife"},
+      season:{type:"rhythm", label:"SEASON", taps:3,  spd:0.36, zoneW:0.055, icon:"salt"},
+      cook:  {type:"timing", label:"COOK",   lo:0.55, hi:0.78, spd:0.50, icon:"stove"},
+      fry:   {type:"timing", label:"FRY",    lo:0.60, hi:0.78, spd:0.55, icon:"pan"},
+      boil:  {type:"timing", label:"BOIL",   lo:0.50, hi:0.82, spd:0.40, icon:"pot"},
+      slice: {type:"prec",   label:"SLICE",  spd:0.55, zone:0.08, icon:"knife"},
+      plate: {type:"prec",   label:"PLATE",  spd:0.45, zone:0.12, icon:"plate"}
     };
+
+    function drawTool(name,x,y,s){
+      if(name==="stove"){
+        rect(x,y+s*0.6,s,s*0.4,"#1a1a1a");
+        rect(x+s*0.08,y+s*0.45,s*0.36,s*0.18,"#222");
+        rect(x+s*0.56,y+s*0.45,s*0.36,s*0.18,"#222");
+        fillC("#ff8a3e");
+        ctx.beginPath();ctx.moveTo(x+s*0.18,y+s*0.45);
+        ctx.lineTo(x+s*0.26,y+s*0.28);ctx.lineTo(x+s*0.34,y+s*0.42);ctx.lineTo(x+s*0.4,y+s*0.45);
+        ctx.closePath();ctx.fill();
+        fillC("#ffd23e");
+        ctx.beginPath();ctx.arc(x+s*0.26,y+s*0.38,3,0,7);ctx.fill();
+        fillC("#444");
+        ctx.beginPath();ctx.arc(x+s*0.3,y+s*0.85,3,0,7);ctx.fill();
+        ctx.beginPath();ctx.arc(x+s*0.7,y+s*0.85,3,0,7);ctx.fill();
+      } else if(name==="pan"){
+        fillC("#222");
+        ctx.beginPath();ctx.ellipse(x+s*0.45,y+s*0.65,s*0.34,s*0.1,0,0,7);ctx.fill();
+        fillC("#ffd23e88");
+        ctx.beginPath();ctx.ellipse(x+s*0.45,y+s*0.6,s*0.3,s*0.07,0,0,7);ctx.fill();
+        rect(x+s*0.78,y+s*0.6,s*0.22,s*0.06,"#444");
+        // sizzle dots
+        fillC("#ffaa3e");
+        ctx.beginPath();ctx.arc(x+s*0.4,y+s*0.55,2,0,7);ctx.fill();
+        ctx.beginPath();ctx.arc(x+s*0.55,y+s*0.58,2,0,7);ctx.fill();
+      } else if(name==="pot"){
+        rect(x+s*0.2,y+s*0.45,s*0.6,s*0.38,"#444");
+        rect(x+s*0.18,y+s*0.4,s*0.64,s*0.08,"#555");
+        rect(x+s*0.05,y+s*0.5,s*0.13,s*0.05,"#333");
+        rect(x+s*0.82,y+s*0.5,s*0.13,s*0.05,"#333");
+        fillC("#fff");
+        for(var i=0;i<3;i++){
+          ctx.beginPath();ctx.arc(x+s*(0.32+i*0.18),y+s*0.36,3+i,0,7);ctx.fill();
+        }
+      } else if(name==="knife"){
+        rect(x+s*0.05,y+s*0.7,s*0.9,s*0.13,"#8a5a3a");
+        rect(x+s*0.05,y+s*0.7,s*0.9,s*0.03,"#aa7a4a");
+        fillC("#ccc");
+        ctx.beginPath();
+        ctx.moveTo(x+s*0.15,y+s*0.55);
+        ctx.lineTo(x+s*0.7,y+s*0.48);
+        ctx.lineTo(x+s*0.74,y+s*0.6);
+        ctx.lineTo(x+s*0.2,y+s*0.65);
+        ctx.closePath();ctx.fill();
+        rect(x+s*0.7,y+s*0.48,s*0.2,s*0.13,"#5a3a1a");
+      } else if(name==="board"){
+        rect(x+s*0.05,y+s*0.55,s*0.9,s*0.3,"#8a5a3a");
+        rect(x+s*0.05,y+s*0.55,s*0.9,s*0.04,"#aa7a4a");
+        // chopped veg
+        fillC("#46ff9c");
+        for(var i=0;i<4;i++){ rect(x+s*(0.15+i*0.18),y+s*0.65,s*0.06,s*0.06,"#46ff9c"); }
+        fillC("#ff8a3e");
+        for(var i=0;i<3;i++){ rect(x+s*(0.2+i*0.22),y+s*0.74,s*0.06,s*0.06,"#ff8a3e"); }
+      } else if(name==="salt"){
+        fillC("#ccc");
+        ctx.beginPath();
+        ctx.moveTo(x+s*0.32,y+s*0.45);
+        ctx.bezierCurveTo(x+s*0.26,y+s*0.45,x+s*0.26,y+s*0.85,x+s*0.32,y+s*0.85);
+        ctx.lineTo(x+s*0.68,y+s*0.85);
+        ctx.bezierCurveTo(x+s*0.74,y+s*0.85,x+s*0.74,y+s*0.45,x+s*0.68,y+s*0.45);
+        ctx.closePath();ctx.fill();
+        rect(x+s*0.32,y+s*0.4,s*0.36,s*0.07,"#444");
+        fillC("#222");
+        ctx.beginPath();ctx.arc(x+s*0.42,y+s*0.43,1.2,0,7);ctx.fill();
+        ctx.beginPath();ctx.arc(x+s*0.5,y+s*0.43,1.2,0,7);ctx.fill();
+        ctx.beginPath();ctx.arc(x+s*0.58,y+s*0.43,1.2,0,7);ctx.fill();
+        // sprinkle particles
+        fillC("#fff");
+        for(var i=0;i<6;i++){
+          var sx=x+s*0.5+Math.cos(i*1.3)*8;
+          var sy=y+s*0.3-i*1.5+((sizzleT*60+i*7)%10);
+          ctx.beginPath();ctx.arc(sx,sy,1.2,0,7);ctx.fill();
+        }
+      } else if(name==="plate"){
+        fillC("#aaa");
+        ctx.beginPath();ctx.ellipse(x+s*0.5,y+s*0.72,s*0.42,s*0.1,0,0,7);ctx.fill();
+        fillC("#fff");
+        ctx.beginPath();ctx.ellipse(x+s*0.5,y+s*0.66,s*0.32,s*0.07,0,0,7);ctx.fill();
+        // spoon
+        fillC("#ccc");
+        ctx.beginPath();ctx.ellipse(x+s*0.8,y+s*0.4,s*0.1,s*0.05,0.5,0,7);ctx.fill();
+        rect(x+s*0.7,y+s*0.42,s*0.15,s*0.025,"#ccc");
+      } else if(name==="coffeepot"){
+        fillC("#3a2a1a");
+        ctx.beginPath();
+        ctx.moveTo(x+s*0.28,y+s*0.42);
+        ctx.lineTo(x+s*0.22,y+s*0.82);
+        ctx.lineTo(x+s*0.66,y+s*0.82);
+        ctx.lineTo(x+s*0.72,y+s*0.42);
+        ctx.closePath();ctx.fill();
+        ctx.strokeStyle="#3a2a1a";ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(x+s*0.78,y+s*0.6,s*0.12,-Math.PI*0.4,Math.PI*0.4);ctx.stroke();
+        fillC("#3a2a1a");
+        ctx.beginPath();
+        ctx.moveTo(x+s*0.22,y+s*0.46);
+        ctx.lineTo(x+s*0.08,y+s*0.4);
+        ctx.lineTo(x+s*0.1,y+s*0.52);
+        ctx.lineTo(x+s*0.24,y+s*0.56);
+        ctx.fill();
+        rect(x+s*0.28,y+s*0.42,s*0.44,s*0.04,"#5a4a2a");
+      }
+    }
 
     var ITEMS=[
       {id:"coffee",  n:"COFFEE",   cost:0, sell:3,  unlock:0,     steps:["pour"]},
@@ -3109,8 +3211,22 @@
     function setMsg(s){ msg=s; msgT=2.0; }
     function genCustomer(r){
       if(!r||!r.menu.length) return null;
-      for(var t=0;t<10;t++){ var id=r.menu[ri(0,r.menu.length-1)], it=itemById(id); if(it) return {item:it,waited:0}; }
-      return null;
+      // Weight selection by sell price — expensive items get ordered way more often
+      var totalW=0, picks=[];
+      for(var i=0;i<r.menu.length;i++){
+        var it=itemById(r.menu[i]);
+        if(!it) continue;
+        var w = it.sell;            // raw price as weight (lobster ~21x more likely than coffee)
+        picks.push({it:it, w:w});
+        totalW += w;
+      }
+      if(!picks.length) return null;
+      var roll = Math.random()*totalW, acc=0;
+      for(var j=0;j<picks.length;j++){
+        acc += picks[j].w;
+        if(roll<=acc) return {item:picks[j].it, waited:0};
+      }
+      return {item:picks[picks.length-1].it, waited:0};
     }
     function nextCustomer(){ var r=activeR(); cust = (r&&r.supplies>0) ? genCustomer(r) : null; }
 
@@ -3118,20 +3234,25 @@
       var item=cust.item, stId=item.steps[cookStepIdx];
       cookStation=STATIONS[stId];
       var r=activeR(), pro=!!r.ups.stove;
+      // Difficulty scales with item value: cheap items are easy, expensive ones are tight
+      var diff = Math.min(1.7, 0.6 + item.sell/55);
       var t=cookStation.type;
       if(t==="timing"){
+        // shrink green zone around its centre based on difficulty
+        var c=(cookStation.lo+cookStation.hi)/2;
+        var halfRange=(cookStation.hi-cookStation.lo)/(2*diff);
         cookStepData={ bar:0,
-          lo: cookStation.lo - (pro?0.06:0),
-          hi: cookStation.hi + (pro?0.06:0),
-          spd: cookStation.spd * (pro?0.82:1) };
+          lo: c - halfRange - (pro?0.04:0),
+          hi: c + halfRange + (pro?0.04:0),
+          spd: cookStation.spd * diff * (pro?0.82:1) };
       } else if(t==="rhythm"){
         cookStepData={ taps:cookStation.taps, done:0, results:[], pos:0,
-          spd: cookStation.spd * (pro?0.85:1),
-          zoneW: cookStation.zoneW * (pro?1.4:1) };
+          spd: cookStation.spd * diff * (pro?0.85:1),
+          zoneW: cookStation.zoneW * (pro?1.4:1) / diff };
       } else if(t==="prec"){
         cookStepData={ pos:0, dir:1,
-          spd: cookStation.spd * (pro?0.85:1),
-          zone: cookStation.zone * (pro?1.4:1),
+          spd: cookStation.spd * diff * (pro?0.85:1),
+          zone: cookStation.zone * (pro?1.4:1) / diff,
           target: 0.4 + Math.random()*0.2 };
       }
     }
@@ -3370,31 +3491,35 @@
     }
     function drawCookStep(){
       var t=cookStation.type, d=cookStepData, item=cust.item;
-      // dish in progress (top center, food sprite)
       drawDishProgress();
-      var sxc = W/2-28, syc=72;
+      // Left: tool sprite for this station (stove, salt, knife, etc.)
+      var txc = W/2-100, tyc=70;
+      rect(txc-2,tyc-2,60,60,"#0a0613");
+      strokeC("#3a2a6b",1); ctx.strokeRect(txc-2,tyc-2,60,60);
+      drawTool(cookStation.icon, txc, tyc, 56);
+      // Right: the dish itself
+      var sxc = W/2+44, syc=70;
       rect(sxc-2,syc-2,60,60,"#0a0613");
       strokeC("#3a2a6b",1); ctx.strokeRect(sxc-2,syc-2,60,60);
       drawFood(item.id, sxc, syc, 56);
-      // sizzle effect based on station
+      // sizzle/sparkle/steam from tool toward dish
       if(t==="timing"){
-        var sw = 320;
-        fillC("#ff8a3e88");
+        fillC("#ff8a3e");
         for(var i=0;i<5;i++){
-          var px2 = sxc+5 + ((sizzleT*40+i*23)%52);
-          var py2 = syc-4 - Math.abs(Math.sin(sizzleT*3+i)*8);
+          var px2 = txc+30 + ((sizzleT*40+i*18)%80);
+          var py2 = tyc+30 - Math.abs(Math.sin(sizzleT*3+i)*10);
           ctx.beginPath();ctx.arc(px2,py2,2,0,7);ctx.fill();
         }
       } else if(t==="rhythm"){
-        // knife sparkles
-        strokeC("#fff8",2);
-        var kx=sxc+50+Math.sin(sizzleT*6)*8;
-        ctx.beginPath();ctx.moveTo(kx-6,syc+8);ctx.lineTo(kx+6,syc-4);ctx.stroke();
-      } else if(t==="prec") {
-        fillC("#27e8ff88");
-        ctx.beginPath();ctx.arc(sxc+58,syc+28,3+Math.sin(sizzleT*4)*1,0,7);ctx.fill();
+        strokeC("#fff",2);
+        var kx=txc+30+Math.sin(sizzleT*8)*10;
+        ctx.beginPath();ctx.moveTo(kx-5,tyc+20);ctx.lineTo(kx+5,tyc+10);ctx.stroke();
+      } else if(t==="prec"){
+        fillC("#27e8ff");
+        ctx.beginPath();ctx.arc(txc+55+Math.sin(sizzleT*4)*4,tyc+30,3,0,7);ctx.fill();
       }
-      px_txt(cookStation.label+" - "+item.n, W/2+38, 92, 8, "#ffd23e", "left");
+      px_txt(cookStation.label+" • "+item.n,W/2,92,9,"#ffd23e");
+      px_txt("STEP "+(cookStepIdx+1)+"/"+cookSteps,W/2,108,6,"#9b8fc7");
       // minigame bar
       var bw=320, bh=28, bx=W/2-bw/2, by=148;
       rect(bx,by,bw,bh,"#160a26");

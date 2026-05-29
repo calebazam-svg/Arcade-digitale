@@ -123,7 +123,7 @@
     "Tower Siege":"tower",         "Word Rush":"wordle",
     "Map Tap":"maptap",            "Turret Survivors":"survivor",
     "Soccer Stars":"soccer",       "Pong Cup":"pongcup",
-    "Diner Empire":"diner"
+    "Diner Empire":"diner",        "Duo Pong":"duopong"
   };
   var POOL = ["snake","muncher","runner","rocket","dungeon","quest","dodger",
               "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend",
@@ -3776,6 +3776,112 @@
       }
     };
   });
+  /* 26. Duo Pong (local 2-player on one keyboard) */
+  reg("duopong","Local 2-player Pong. PLAYER 1 uses W (up) / S (down). PLAYER 2 uses ↑ / ↓. First to 5 points wins the match. Ball speeds up every rally. (P2 can also use the on-screen up/down pad if a keyboard isn't handy.)",
+  function(){
+    var PH=66, PW=10, p1y=H/2-PH/2, p2y=H/2-PH/2;
+    var bx=W/2, by=H/2, bvx=-240, bvy=60, rallies=0;
+    var p1score=0, p2score=0, winner=0;
+    var p1u=false, p1d=false, p2u_kb=false, p2d_kb=false;
+
+    function onKD(ev){
+      var c=ev.code;
+      if(c==="KeyW"){ p1u=true; ev.preventDefault(); ev.stopImmediatePropagation(); }
+      else if(c==="KeyS"){ p1d=true; ev.preventDefault(); ev.stopImmediatePropagation(); }
+      else if(c==="ArrowUp"){ p2u_kb=true; ev.preventDefault(); ev.stopImmediatePropagation(); }
+      else if(c==="ArrowDown"){ p2d_kb=true; ev.preventDefault(); ev.stopImmediatePropagation(); }
+    }
+    function onKU(ev){
+      var c=ev.code;
+      if(c==="KeyW") p1u=false;
+      else if(c==="KeyS") p1d=false;
+      else if(c==="ArrowUp") p2u_kb=false;
+      else if(c==="ArrowDown") p2d_kb=false;
+    }
+    window.addEventListener("keydown", onKD, true);
+    window.addEventListener("keyup",   onKU, true);
+
+    function serve(dir){
+      bx=W/2; by=H/2;
+      var sp=240+rallies*8;
+      bvx = (dir||-1) * sp;
+      bvy = rnd(-0.3,0.3)*sp;
+    }
+
+    return {
+      score:0, over:false,
+      dispose:function(){
+        window.removeEventListener("keydown", onKD, true);
+        window.removeEventListener("keyup",   onKU, true);
+      },
+      update:function(dt){
+        if(winner){
+          if(IN.edge.action){
+            p1score=0; p2score=0; rallies=0; winner=0;
+            p1y=H/2-PH/2; p2y=H/2-PH/2; serve(-1);
+          }
+          return;
+        }
+        // Player 1 (W/S only)
+        if(p1u) p1y -= 360*dt;
+        if(p1d) p1y += 360*dt;
+        p1y = Math.max(6, Math.min(H-6-PH, p1y));
+        // Player 2 (arrow keys or on-screen up/down pad)
+        var p2u = p2u_kb || IN.held.up;
+        var p2d = p2d_kb || IN.held.down;
+        if(p2u) p2y -= 360*dt;
+        if(p2d) p2y += 360*dt;
+        p2y = Math.max(6, Math.min(H-6-PH, p2y));
+        // Ball
+        bx += bvx*dt; by += bvy*dt;
+        if(by<8){ by=8; bvy=Math.abs(bvy); }
+        if(by>H-8){ by=H-8; bvy=-Math.abs(bvy); }
+        if(bvx<0 && bx-6<=24 && bx-6>=6 && by+6>=p1y && by-6<=p1y+PH){
+          bvx=Math.abs(bvx)*1.05; bx=30;
+          bvy+=((by-(p1y+PH/2))/(PH/2))*200; rallies++;
+        }
+        var ax=W-24;
+        if(bvx>0 && bx+6>=ax && bx+6<=ax+PW+6 && by+6>=p2y && by-6<=p2y+PH){
+          bvx=-Math.abs(bvx)*1.05; bx=ax-6;
+          bvy+=((by-(p2y+PH/2))/(PH/2))*200; rallies++;
+        }
+        bvy = Math.max(-380, Math.min(380, bvy));
+        this.score = (p1score+p2score)*50 + rallies*5;
+        if(bx<0){
+          p2score++;
+          if(p2score>=5){ winner=2; }
+          else { rallies++; serve(1); }
+        }
+        if(bx>W){
+          p1score++;
+          if(p1score>=5){ winner=1; this.score+=200; }
+          else { rallies++; serve(-1); }
+        }
+      },
+      draw:function(){
+        clear("#02030f","#0a0613");
+        ctx.strokeStyle="#27e8ff44";ctx.setLineDash([8,12]);ctx.lineWidth=3;
+        ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+        rect(14, p1y, PW, PH, "#27e8ff");
+        rect(W-24, p2y, PW, PH, "#ff3ea5");
+        rect(bx-6, by-6, 12, 12, "#ffd23e");
+        px_txt("P1  "+p1score, W/2-50, 28, 12, "#27e8ff", "right");
+        px_txt(p1score+"-"+p2score, W/2, 28, 11, "#fff");
+        px_txt(p2score+"  P2", W/2+50, 28, 12, "#ff3ea5", "left");
+        px_txt("P1: W / S", 12, H-12, 7, "#27e8ff", "left");
+        px_txt("FIRST TO 5", W/2, H-12, 7, "#9b8fc7");
+        px_txt("P2: ↑ / ↓", W-12, H-12, 7, "#ff3ea5", "right");
+        if(winner){
+          ctx.save();ctx.globalAlpha=.85;rect(0,0,W,H,"#02030f");ctx.restore();
+          var c = winner===1?"#27e8ff":"#ff3ea5";
+          px_txt("PLAYER "+winner+" WINS!", W/2, 150, 16, c);
+          px_txt(p1score+" - "+p2score, W/2, 184, 13, "#fff");
+          px_txt("PRESS A TO PLAY AGAIN", W/2, 232, 9, "#46ff9c");
+        }
+      }
+    };
+  });
+
   /* Mystery handled in startGame() */
 
   /* ════════════════════ LOOP / MODAL ════════════════════ */
@@ -3814,10 +3920,12 @@
     var t="Score: "+sc; if(sc>=best&&sc>0)t+="  ★ NEW BEST!";
     document.getElementById("ovFinal").textContent=t;
     if(lbEndEl) lbEndEl.innerHTML = lbHTML(id, recordScore(id, sc), sc);
+    if(curGame.dispose){ try{curGame.dispose();}catch(e){} }
     curGame=null; show("ovEnd");
   }
   function closeModal() {
     cancelAnimationFrame(rafID);
+    if(curGame && curGame.dispose){ try{curGame.dispose();}catch(e){} }
     curGame=null; ACTIVE=false; prevTS=null; clearEdges();
     for(var k in IN.held) IN.held[k]=0;
     modal.classList.remove("open"); modal.setAttribute("aria-hidden","true");

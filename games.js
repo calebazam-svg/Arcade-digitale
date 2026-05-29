@@ -2432,7 +2432,8 @@
       {id:"linecook", n:"LINE COOK", cost:8000,  desc:"One cook also serves a 2nd customer"},
       {id:"waiter",   n:"WAITER",    cost:5000,  desc:"Patience +66% (15s before walkoff)"},
       {id:"host",     n:"HOST",      cost:6000,  desc:"+25% customers per day"},
-      {id:"marketer", n:"MARKETER",  cost:12000, desc:"+0.3 review boost"}
+      {id:"marketer", n:"MARKETER",  cost:12000, desc:"+0.3 review boost"},
+      {id:"manager",  n:"MANAGER",   cost:10000, desc:"Earns passive income while you work elsewhere"}
     ];
 
     // Interior decor — pure visual + customer flow boost
@@ -3148,6 +3149,26 @@
       for(var i=0;i<DECOR.length;i++) if(r.decor[DECOR[i].id]) s+=DECOR[i].score;
       return s;
     }
+    // Manager passive income: ~55% of what an active day would yield, no skill check
+    function passiveIncome(r){
+      if(!r||!r.employees||!r.employees.manager) return 0;
+      var rt=ratingOf(r)||3, loc=LOCS[r.locId];
+      var seats=r.ups.seats?1.5:1;
+      var dec=1+decorScore(r)*0.06;
+      var base=loc.dens*mktMult(r)*seats*(1+(rt-3)*0.25)*dec;
+      var quota=base*5+2;
+      if(r.employees.host) quota*=1.25;
+      var avgPrice=0,cnt=0;
+      for(var i=0;i<r.menu.length;i++){
+        var it=itemById(r.menu[i]);
+        if(it){ avgPrice+=it.sell; cnt++; }
+      }
+      avgPrice = cnt ? avgPrice/cnt : 5;
+      var tierMult=1+LOCS[r.locId].lux*0.6;
+      var avgStars=r.employees.marketer?4.0:3.5;
+      var avgPay=avgPrice*4*tierMult*(0.4+avgStars*0.12);
+      return Math.round(quota*avgPay*0.55);
+    }
     function unlockItem(id){
       if(!save.unlocked) save.unlocked=["coffee","toast"];
       if(save.unlocked.indexOf(id)<0) save.unlocked.push(id);
@@ -3201,6 +3222,7 @@
     var resetConfirm=false;
     var sizzleT=0; // cooking visual effect timer
     var dayState="idle", dayQuota=0, dayServed=0, dayLost=0, dayRev=0;
+    var dayPassive=0, dayManaged=0;
     var custWaited=0;
     var mapConfirm=false;
 
@@ -3844,7 +3866,23 @@
               saveAll();
             } else if(IN.edge.action){ startCook(); custWaited=0; }
           } else {
-            if(dayServed+dayLost >= dayQuota){ dayState="summary"; return; }
+            if(dayServed+dayLost >= dayQuota){
+              dayState="summary";
+              // Payouts from managers at the OTHER restaurants you're not working at today
+              dayPassive=0; dayManaged=0;
+              if(save.restaurants.length>1){
+                for(var pi=0; pi<save.restaurants.length; pi++){
+                  if(pi===save.activeIdx) continue;
+                  var pr=save.restaurants[pi];
+                  if(pr.employees && pr.employees.manager){
+                    var inc=passiveIncome(pr);
+                    if(inc>0){ pr.revenue+=inc; dayPassive+=inc; dayManaged++; }
+                  }
+                }
+                if(dayPassive>0){ save.cash+=dayPassive; saveAll(); }
+              }
+              return;
+            }
             customerT-=dt;
             if(customerT<=0){
               var r=activeR(), loc=LOCS[r.locId];
@@ -4043,9 +4081,13 @@
             px_txt("DAY "+dayN+" COMPLETE!",W/2,96,12,"#ffd23e");
             px_txt("SERVED: "+dayServed,W/2,128,9,"#46ff9c");
             px_txt("WALKED OFF: "+dayLost,W/2,150,9,dayLost>0?"#ff8a8a":"#9b8fc7");
-            px_txt("REVENUE: "+fmt$(dayRev),W/2,180,11,"#ffd23e");
+            px_txt("REVENUE: "+fmt$(dayRev),W/2,176,11,"#ffd23e");
+            if(dayPassive>0){
+              px_txt("MANAGERS ("+dayManaged+"): +"+fmt$(dayPassive),W/2,198,8,"#27e8ff");
+              px_txt("TOTAL: "+fmt$(dayRev+dayPassive),W/2,214,9,"#46ff9c");
+            }
             var rt=ratingOf(r);
-            px_txt(rt?"RATING "+rt.toFixed(1)+"★":"",W/2,206,8,rt>=4?"#46ff9c":rt>=2.5?"#ffd23e":"#ff8a8a");
+            px_txt(rt?"RATING "+rt.toFixed(1)+"★":"",W/2,234,7,rt>=4?"#46ff9c":rt>=2.5?"#ffd23e":"#ff8a8a");
             px_txt("A: NEXT DAY   ◄ EXIT",W/2,H-50,9,"#46ff9c");
             return;
           }
@@ -4184,14 +4226,19 @@
 
         if(screen==="travel"){
           px_txt("YOUR RESTAURANTS",W/2,46,11,"#27e8ff");
-          var top=70, h=24;
+          var top=70, h=26;
           for(var i=0;i<save.restaurants.length;i++){
             var R=save.restaurants[i], y=top+i*h, hi=i===sel, cur=i===save.activeIdx;
+            var mgr = R.employees && R.employees.manager;
             if(hi) rect(8,y-13,W-16,h,"#1a2350");
             px_txt((cur?"> ":"")+R.name,16,y+2,8,hi?"#fff":"#cdbff0","left");
             px_txt(LOCS[R.locId].n,16,y+14,6,"#9b8fc7","left");
             var rt=ratingOf(R);
             px_txt(rt?rt.toFixed(1)+"★":"--",W-16,y+2,8,"#ffd23e","right");
+            if(mgr){
+              if(cur) px_txt("[MGR]",W-16,y+14,5,"#9b8fc7","right");
+              else px_txt("[MGR +"+fmt$(passiveIncome(R))+"/DAY]",W-16,y+14,5,"#27e8ff","right");
+            }
           }
           px_txt("◄ BACK   A: TRAVEL",W/2,H-10,7,"#46ff9c");
           return;

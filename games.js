@@ -1630,9 +1630,9 @@
       {n:"TEAL",c:"#2ad6c0"},{n:"ROSE",c:"#ff6b9b"}
     ];
     var DIFFS=[
-      {n:"EASY",   asp:120, akick:320, react:0.34},
-      {n:"NORMAL", asp:170, akick:390, react:0.16},
-      {n:"HARD",   asp:215, akick:450, react:0.05}
+      {n:"EASY",   asp:95,  akick:280, react:0.50, err:42, kcd:0.55},
+      {n:"NORMAL", asp:145, akick:350, react:0.28, err:18, kcd:0.40},
+      {n:"HARD",   asp:185, akick:410, react:0.14, err:6,  kcd:0.26}
     ];
     var state="diff", diSel=1, tmSel=0, round=1, opp=null, diff=DIFFS[1];
     var clock=90, ps=0, as=0, golden=false, msg="", msgT=0, win=false, tally=0;
@@ -1694,6 +1694,8 @@
         } else {
           A.tx = ideal;
         }
+        // Inaccuracy — the AI doesn't position perfectly, scales with difficulty
+        A.tx += (Math.random()*2-1) * diff.err;
         A.tx = Math.max(RB+2, Math.min(W-RB-2, A.tx));
       }
       A.vx=0;
@@ -1708,7 +1710,7 @@
       A.kc-=dt;
       var bDx = ball.x - A.x, bDy = ball.y - A.y;
       if(A.kc<=0 && Math.abs(bDx)<RB+RBALL+10 && Math.abs(bDy)<RB+10 && bDx <= 6){
-        if(kick(A,-1,diff.akick)) A.kc=0.32;
+        if(kick(A,-1,diff.akick)) A.kc=diff.kcd;
       }
       // integrate players
       [P,A].forEach(function(pl){

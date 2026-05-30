@@ -39,9 +39,11 @@ body::before{content:"";position:fixed;inset:0;z-index:0;
 .cat-nav button:hover{color:var(--cyan)}
 .cat-nav button.active{color:var(--bg);background:linear-gradient(135deg,var(--cyan),var(--pink));box-shadow:0 0 18px rgba(39,232,255,.4)}
 .top-actions{display:flex;align-items:center;gap:12px}
-.snd,.profile-btn{background:var(--panel);border:1px solid var(--line);color:var(--text);
+.snd,.profile-btn,.diff{background:var(--panel);border:1px solid var(--line);color:var(--text);
   cursor:pointer;border-radius:50%;width:42px;height:42px;font-size:18px;transition:.2s}
-.snd:hover,.profile-btn:hover{border-color:var(--cyan);box-shadow:0 0 16px rgba(39,232,255,.35)}
+.snd:hover,.profile-btn:hover,.diff:hover{border-color:var(--cyan);box-shadow:0 0 16px rgba(39,232,255,.35)}
+.diff{font-family:'Press Start 2P';font-size:9px;padding:0 12px;letter-spacing:1px;height:auto;width:auto;border-radius:8px;cursor:pointer}
+.diff.easy{color:var(--green)} .diff.normal{color:var(--cyan)} .diff.hard{color:var(--pink)}
 .profile-btn{display:grid;place-items:center}
 
 /* Hero */

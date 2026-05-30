@@ -7,7 +7,6 @@
   const games = [
     { n: "Maze Muncher", e: "🟡", c: ["Trending", "Retro Legends"], r: 4.9, plays: "1.2M", badge: "hot" },
     { n: "Pixel Jumper", e: "🍄", c: ["Retro Legends", "Trending"], r: 4.7, plays: "880K" },
-    { n: "Turbo Circuit", e: "🏎️", c: ["Retro Legends", "Competitive"], r: 4.6, plays: "640K" },
     { n: "Block Cascade", e: "🧩", c: ["Retro Legends", "Trending"], r: 4.8, plays: "1.0M" },
     { n: "Quest Pixels", e: "🗺️", c: ["Retro Legends", "New Releases"], r: 4.5, plays: "410K" },
     { n: "FPS Arena", e: "🔫", c: ["Exclusives", "Competitive", "Trending"], r: 4.9, plays: "950K", badge: "excl" },
@@ -17,7 +16,6 @@
     { n: "Mystery Machine", e: "🎰", c: ["Exclusives", "New Releases"], r: 4.5, plays: "300K", badge: "new" },
     { n: "Galaxy Blaster", e: "👾", c: ["Retro Legends", "Competitive"], r: 4.7, plays: "660K" },
     { n: "Bubble Pop Saga", e: "🫧", c: ["Trending", "New Releases"], r: 4.4, plays: "280K", badge: "new" },
-    { n: "Kart Kombat", e: "🏁", c: ["Multiplayer", "Competitive"], r: 4.8, plays: "910K" },
     { n: "Dungeon Dash", e: "🐉", c: ["Multiplayer", "New Releases"], r: 4.5, plays: "190K", badge: "new" },
     { n: "Neon Snake", e: "🐍", c: ["Retro Legends", "Trending"], r: 4.6, plays: "770K" },
     { n: "Asteroid Storm", e: "🪨", c: ["Retro Legends", "Competitive"], r: 4.5, plays: "450K" },
@@ -119,7 +117,7 @@
   $("#avaPick").innerHTML = avatars.map((a, i) =>
     `<button class="${i === 0 ? "sel" : ""}" data-a="${a}">${a}</button>`).join("");
 
-  const recoSrc = ["FPS Arena", "Kart Kombat", "Neon Snake", "Pixel Heist", "Galaxy Blaster", "Block Cascade"];
+  const recoSrc = ["FPS Arena", "Duo Pong", "Neon Snake", "Pixel Heist", "Galaxy Blaster", "Block Cascade"];
   $("#recoRow").innerHTML = recoSrc.map(n => {
     const g = games.find(x => x.n === n);
     return `<div class="reco-card"><div class="rt">${g.e}</div><p>${g.n}</p></div>`;
@@ -142,6 +140,25 @@
     sound = !sound;
     e.currentTarget.textContent = sound ? "🔊" : "🔇";
     if (sound) beep(660, 0.1);
+  });
+
+  /* ---- AI difficulty cycle (Easy / Normal / Hard) ---- */
+  const DIFFS = ["easy","normal","hard"];
+  function refreshDiffBtn(){
+    const d = (window.DAGames && window.DAGames.getDifficulty && window.DAGames.getDifficulty()) || "normal";
+    const btn = $("#diffBtn");
+    btn.textContent = d.toUpperCase();
+    btn.className = "diff " + d;
+  }
+  refreshDiffBtn();
+  $("#diffBtn").addEventListener("click", () => {
+    const cur = (window.DAGames && window.DAGames.getDifficulty && window.DAGames.getDifficulty()) || "normal";
+    const idx = DIFFS.indexOf(cur);
+    const next = DIFFS[(idx + 1) % DIFFS.length];
+    if (window.DAGames && window.DAGames.setDifficulty) window.DAGames.setDifficulty(next);
+    refreshDiffBtn();
+    beep(700, 0.06); setTimeout(() => beep(990, 0.1), 60);
+    toast("AI Difficulty: " + next.toUpperCase());
   });
 
   /* ---- Interactions ---- */

@@ -13,6 +13,13 @@
     px: 0, py: 0, pclick: 0
   };
   var ACTIVE = false;
+
+  /* Global AI difficulty (Easy / Normal / Hard) — read from localStorage */
+  var DA_DIFF = (function(){ try{ return localStorage.getItem("da_diff") || "normal"; }catch(e){ return "normal"; } })();
+  function diffMult(){ return DA_DIFF==="easy" ? 0.7 : DA_DIFF==="hard" ? 1.5 : 1.0; }
+  function setDifficulty(d){ DA_DIFF=d; try{ localStorage.setItem("da_diff", d); }catch(e){} }
+  function getDifficulty(){ return DA_DIFF; }
+
   var KMAP = {
     ArrowLeft:"left", ArrowRight:"right", KeyD:"right",
     ArrowUp:"up", KeyW:"up", ArrowDown:"down", KeyS:"down",
@@ -114,7 +121,6 @@
     "Neon Snake":"snake",          "Maze Muncher":"muncher",
     "Pixel Jumper":"runner",       "Retro Rush":"rocket",
     "Dungeon Dash":"dungeon",      "Quest Pixels":"quest",
-    "Turbo Circuit":"dodger",      "Kart Kombat":"kart",
     "FPS Arena":"shooter",         "Galaxy Blaster":"galaxy",
     "Asteroid Storm":"asteroids",  "Bubble Pop Saga":"popper",
     "Block Cascade":"stacker",     "Pixel Heist":"heist",
@@ -125,253 +131,10 @@
     "Soccer Stars":"soccer",       "Pong Cup":"pongcup",
     "Diner Empire":"diner",        "Duo Pong":"duopong"
   };
-  var POOL = ["snake","muncher","runner","rocket","dungeon","quest","dodger",
-              "kart","shooter","galaxy","asteroids","popper","stacker","heist","spend",
+  var POOL = ["snake","muncher","runner","rocket","dungeon","quest",
+              "shooter","galaxy","asteroids","popper","stacker","heist","spend",
               "claw","pong","tower","wordle","maptap","survivor","soccer","pongcup"];
 
-  /* ── Shared pseudo-3D kart racer (Mario-Kart-style) ──────── */
-  function makeRacer(cfg){
-    var SEGLEN=200, NSEG=560, ROADW=1400, CAMH=1000;
-    var CAMD=1/Math.tan((100/2)*Math.PI/180), DRAW=180;
-    var trackLen=NSEG*SEGLEN;
-    var segs=[];
-    for(var i=0;i<NSEG;i++){
-      var cv=0;
-      if(i> 60&&i<120) cv= 2.6;
-      if(i>180&&i<240) cv=-3.2;
-      if(i>300&&i<340) cv= 4.0;
-      if(i>410&&i<470) cv=-2.4;
-      segs.push({ index:i, curve:cv,
-        p1:{world:{z:i*SEGLEN},camera:{},screen:{}},
-        p2:{world:{z:(i+1)*SEGLEN},camera:{},screen:{}} });
-    }
-    function project(p,camX,camY,camZ){
-      p.camera.x=(p.world.x||0)-camX;
-      p.camera.y=(p.world.y||0)-camY;
-      p.camera.z=(p.world.z||0)-camZ;
-      p.screen.scale=CAMD/p.camera.z;
-      p.screen.x=Math.round(W/2 + p.screen.scale*p.camera.x*W/2);
-      p.screen.y=Math.round(H/2 - p.screen.scale*p.camera.y*H/2);
-      p.screen.w=Math.round(p.screen.scale*ROADW*W/2);
-    }
-    var pos=0, playerX=0, speed=0, maxSpd=cfg.maxSpd||12000, lap=1, laps=cfg.laps||3;
-    var boostT=0, spinT=0, shieldT=0, finished=false, raceT=0;
-    var item="", banner="", bannerT=0;
-    var ITEMS=["boost","shell","mine","shield"];
-    var rivals=[];
-    for(var r=0;r<(cfg.rivals||4);r++)
-      rivals.push({ z:(r+1)*900, off:rnd(-0.55,0.55), tot:0,
-        spd:(cfg.maxSpd||12000)*0.6, base:0.55+Math.random()*0.12,
-        item:ITEMS[ri(0,3)], icd:rnd(3,7), spin:0 });
-    var boxes=[];
-    for(var bx=0;bx<14;bx++) boxes.push({z:(bx+1)*(trackLen/15),off:rnd(-0.55,0.55),t:0});
-    var shells=[], mines=[];
-    var pads=[];
-    if(cfg.boost) for(var b=0;b<10;b++) pads.push({z:rnd(0,trackLen),off:rnd(-0.5,0.5)});
-    function segAt(z){ return segs[Math.floor(z/SEGLEN)%NSEG]; }
-    function dzf(a,b){ return ((a-b)%trackLen+trackLen)%trackLen; }
-    function flash(msg){ banner=msg; bannerT=1.4; }
-
-    return { score:0, over:false,
-      update:function(dt){
-        if(finished){ this.over=true; return; }
-        raceT+=dt; if(bannerT>0)bannerT-=dt;
-        if(shieldT>0)shieldT-=dt;
-        speed += (maxSpd*0.56 - speed*0.46)*dt;
-        if(spinT>0){ spinT-=dt; speed*=Math.pow(0.12,dt); }
-        if(boostT>0){ boostT-=dt; speed=Math.min(maxSpd*1.6,speed+maxSpd*1.5*dt); }
-        // use item with A
-        if((IN.edge.action)&&item&&spinT<=0){
-          if(item==="boost"){ boostT=Math.max(boostT,1.3); flash("BOOST!"); }
-          else if(item==="shell"){ shells.push({z:pos+260,off:playerX,own:-1}); flash("SHELL FIRED"); }
-          else if(item==="mine"){ mines.push({z:pos-120,off:playerX}); flash("MINE DROPPED"); }
-          else if(item==="shield"){ shieldT=5; flash("SHIELD UP"); }
-          item="";
-        }
-        var steer=(speed/maxSpd)*2.6*(spinT>0?0:1);
-        if(IN.held.left)  playerX-=steer*dt;
-        if(IN.held.right) playerX+=steer*dt;
-        playerX-=(segAt(pos).curve)*(speed/maxSpd)*dt*0.45;
-        if(Math.abs(playerX)>1.05){ speed*=Math.pow(0.4,dt); }
-        playerX=Math.max(-2,Math.min(2,playerX));
-        // item boxes
-        for(var ib=0;ib<boxes.length;ib++){
-          var bo=boxes[ib];
-          if(bo.t>0){ bo.t-=dt; continue; }
-          if(dzf(bo.z,pos)<150 && Math.abs(bo.off-playerX)<0.34){
-            if(!item){ item=ITEMS[ri(0,3)]; flash("GOT "+item.toUpperCase()); }
-            bo.t=4;
-          }
-          for(var rq=0;rq<rivals.length;rq++)
-            if(bo.t<=0 && dzf(bo.z,rivals[rq].z)<150 && Math.abs(bo.off-rivals[rq].off)<0.34){
-              if(!rivals[rq].item) rivals[rq].item=ITEMS[ri(0,3)]; bo.t=4;
-            }
-        }
-        // shells travel forward, hit any kart
-        for(var s=0;s<shells.length;s++){
-          var sh=shells[s]; sh.z+=maxSpd*1.7*dt;
-          if(sh.own!==-1 && dzf(pos,sh.z)<140 && dzf(pos,sh.z)>=0 && Math.abs(playerX-sh.off)<0.4 && shieldT<=0 && spinT<=0){
-            spinT=1.5; flash("SPUN OUT!"); sh.dead=true; continue;
-          }
-          for(var rk=0;rk<rivals.length;rk++){
-            var rr=rivals[rk];
-            if(sh.own!==rk && dzf(rr.z,sh.z)<140 && Math.abs(rr.off-sh.off)<0.4 && rr.spin<=0){
-              rr.spin=1.5; sh.dead=true; if(sh.own===-1)this.score+=30; break;
-            }
-          }
-          if(dzf(sh.z,pos)>trackLen*0.6) sh.dead=true;
-        }
-        shells=shells.filter(function(o){return !o.dead;});
-        // mines
-        for(var m=0;m<mines.length;m++){
-          var mi=mines[m];
-          if(dzf(mi.z,pos)<90 && Math.abs(mi.off-playerX)<0.3 && shieldT<=0 && spinT<=0){
-            spinT=1.4; flash("HIT A MINE!"); mi.dead=true; continue;
-          }
-          for(var rm=0;rm<rivals.length;rm++)
-            if(dzf(mi.z,rivals[rm].z)<90 && Math.abs(mi.off-rivals[rm].off)<0.3 && rivals[rm].spin<=0){
-              rivals[rm].spin=1.4; mi.dead=true; this.score+=15; break;
-            }
-        }
-        mines=mines.filter(function(o){return !o.dead;});
-        if(cfg.boost) for(var p=0;p<pads.length;p++){
-          var pd=pads[p], pdz=dzf(pd.z,pos);
-          if(pdz<150 && Math.abs(pd.off-playerX)<0.34 && !pd._h){ pd._h=raceT; boostT=Math.max(boostT,0.9); this.score+=25; }
-          if(pd._h && raceT-pd._h>3) pd._h=0;
-        }
-        // rival AI: rubber-band speed + use items + race the player
-        var me=(lap-1)*trackLen+pos;
-        for(var ri2=0;ri2<rivals.length;ri2++){
-          var rv=rivals[ri2];
-          if(rv.spin>0){ rv.spin-=dt; rv.spd*=Math.pow(0.15,dt); }
-          else {
-            var lead=(me - rv.tot)/trackLen;            // +ve = player ahead
-            var tgt=maxSpd*(rv.base + Math.max(-0.08,Math.min(0.22,lead*0.5)));
-            rv.spd += (tgt - rv.spd)*1.5*dt;
-          }
-          rv.icd-=dt;
-          if(rv.icd<=0 && rv.spin<=0){
-            rv.icd=rnd(4,8);
-            if(rv.item==="boost"){ rv.spd*=1.5; rv.item=""; }
-            else if(rv.item==="shell"){ shells.push({z:rv.z+200,off:rv.off,own:ri2}); rv.item=""; }
-            else if(rv.item==="mine"){ mines.push({z:rv.z-100,off:rv.off}); rv.item=""; }
-            else if(rv.item==="shield"){ rv.item=""; }
-            else rv.item=ITEMS[ri(0,3)];
-          }
-          rv.z+=rv.spd*dt; rv.tot+=rv.spd*dt;
-          rv.off+=(Math.sin((rv.z+ri2*400)/1400)*0.5-rv.off)*0.6*dt;
-          // body-check between player and rival
-          if(dzf(rv.z,pos)<150 && Math.abs(rv.off-playerX)<0.4){
-            speed*=Math.pow(0.3,dt); rv.spd*=Math.pow(0.5,dt);
-          }
-        }
-        pos+=speed*dt;
-        if(pos>=trackLen){ pos-=trackLen; lap++;
-          if(lap<=laps){ this.score+=200; flash("LAP "+lap); }
-          if(lap>laps){ finished=true;
-            var ahead=0,fin=(lap-1)*trackLen+pos;
-            for(var q=0;q<rivals.length;q++) if(rivals[q].tot>fin) ahead++;
-            this.score += [600,400,250,150,80][Math.min(ahead,4)];
-          }
-        }
-      },
-      draw:function(){
-        var g=ctx.createLinearGradient(0,0,0,H/2);
-        g.addColorStop(0,cfg.sky1);g.addColorStop(1,cfg.sky2);
-        ctx.fillStyle=g;ctx.fillRect(0,0,W,H/2);
-        rect(0,H/2,W,H/2,cfg.grass);
-        var base=Math.floor(pos/SEGLEN)%NSEG;
-        var basePct=(pos%SEGLEN)/SEGLEN;
-        var x=0, dx=-(segs[base].curve*basePct), maxy=H;
-        var anchor=[];
-        for(var n=0;n<DRAW;n++){
-          var seg=segs[(base+n)%NSEG];
-          var looped=seg.index<base;
-          var camZ=pos-(looped?trackLen:0);
-          project(seg.p1,(playerX*ROADW)-x,     CAMH,camZ);
-          project(seg.p2,(playerX*ROADW)-x-dx, CAMH,camZ);
-          x+=dx; dx+=seg.curve;
-          anchor[seg.index]={x:seg.p1.screen.x,y:seg.p1.screen.y,w:seg.p1.screen.w,sc:seg.p1.screen.scale};
-          if(seg.p1.camera.z<=CAMD || seg.p2.screen.y>=maxy) continue;
-          var y1=seg.p1.screen.y,y2=seg.p2.screen.y;
-          var w1=seg.p1.screen.w,w2=seg.p2.screen.w;
-          var x1=seg.p1.screen.x,x2=seg.p2.screen.x;
-          var dark=((seg.index/3)|0)%2===0;
-          ctx.fillStyle=dark?cfg.grass:cfg.grass2;
-          ctx.fillRect(0,y2,W,y1-y2);
-          ctx.fillStyle=dark?"#ffffff":"#ff3ea5";
-          poly(x1-w1*1.18,y1,x1+w1*1.18,y1,x2+w2*1.18,y2,x2-w2*1.18,y2);
-          ctx.fillStyle=dark?cfg.road:cfg.road2;
-          poly(x1-w1,y1,x1+w1,y1,x2+w2,y2,x2-w2,y2);
-          if(dark){ ctx.fillStyle="#ffffff55";
-            poly(x1-w1*0.04,y1,x1+w1*0.04,y1,x2+w2*0.04,y2,x2-w2*0.04,y2); }
-          maxy=y2;
-        }
-        function atZ(z){ return anchor[Math.floor(z/SEGLEN)%NSEG]; }
-        // boost pads
-        if(cfg.boost) for(var p=0;p<pads.length;p++){
-          var pd=pads[p]; if(pd._h)continue;
-          var a=atZ(pd.z); if(!a||a.sc<=0)continue;
-          var pw=a.w*0.34; rect(a.x+pd.off*a.w-pw/2,a.y-pw*0.4,pw,pw*0.5,"#46ff9c");
-        }
-        // item boxes
-        for(var ib=0;ib<boxes.length;ib++){
-          var bo=boxes[ib]; if(bo.t>0)continue;
-          var ab=atZ(bo.z); if(!ab||ab.sc<=0)continue;
-          var bw=ab.w*0.3; if(bw<4)continue;
-          var bcx=ab.x+bo.off*ab.w, bcy=ab.y-bw;
-          rect(bcx-bw/2,bcy,bw,bw,"#27e8ff");
-          rect(bcx-bw/2,bcy,bw,bw/4,"#9b6bff");
-          px_txt("?",bcx,bcy+bw*0.78,Math.max(6,bw*0.5)|0,"#fff");
-        }
-        // mines
-        for(var m=0;m<mines.length;m++){
-          var mi=mines[m], am=atZ(mi.z); if(!am||am.sc<=0)continue;
-          var ms=Math.max(3,am.w*0.12);
-          rect(am.x+mi.off*am.w-ms/2,am.y-ms/2,ms,ms,"#ff3ea5");
-        }
-        // shells
-        for(var s=0;s<shells.length;s++){
-          var sh=shells[s], as=atZ(sh.z); if(!as||as.sc<=0)continue;
-          var ss=Math.max(4,as.w*0.18);
-          ctx.fillStyle="#46ff9c";
-          ctx.beginPath();ctx.arc(as.x+sh.off*as.w,as.y-ss/2,ss/2,0,7);ctx.fill();
-        }
-        // rivals (far to near)
-        var rs=rivals.slice().sort(function(a,b){ return dzf(b.z,pos)-dzf(a.z,pos); });
-        for(var ri3=0;ri3<rs.length;ri3++){
-          var rv=rs[ri3], a2=atZ(rv.z); if(!a2||a2.sc<=0)continue;
-          var cw=a2.sc*2600, ch=cw*0.8; if(cw<3)continue;
-          var rxp=a2.x+rv.off*a2.w, ryp=a2.y;
-          var wob=rv.spin>0?Math.sin(raceT*30)*cw*0.18:0;
-          rect(rxp-cw/2+wob,ryp-ch,cw,ch,rv.spin>0?"#ff8a8a":cfg.rival);
-          rect(rxp-cw*0.34+wob,ryp-ch*0.7,cw*0.68,ch*0.4,"#1a1a2a");
-        }
-        // player kart
-        var pwob=spinT>0?Math.sin(raceT*32)*10:0;
-        var pcx=W/2+pwob+(IN.held.left?-6:IN.held.right?6:0), pcy=H-46;
-        if(shieldT>0){ ctx.save();ctx.globalAlpha=.4;ctx.fillStyle="#27e8ff";
-          ctx.beginPath();ctx.arc(pcx,pcy+6,42,0,7);ctx.fill();ctx.restore(); }
-        rect(pcx-26,pcy-6,52,30,spinT>0?"#ff8a8a":cfg.player);
-        rect(pcx-30,pcy+18,12,12,"#1a1a1a");
-        rect(pcx+18,pcy+18,12,12,"#1a1a1a");
-        rect(pcx-16,pcy-16,32,14,"#1a1a2a");
-        if(boostT>0){ ctx.fillStyle="#ffd23e";
-          ctx.beginPath();ctx.moveTo(pcx-10,pcy+24);ctx.lineTo(pcx+10,pcy+24);
-          ctx.lineTo(pcx,pcy+24+12+Math.random()*8);ctx.fill(); }
-        // HUD
-        px_txt("LAP "+Math.min(lap,laps)+"/"+laps,8,20,8,"#fff","left");
-        var place=1,me2=(lap-1)*trackLen+pos;
-        for(var q=0;q<rivals.length;q++) if(rivals[q].tot>me2) place++;
-        px_txt(place+(["TH","ST","ND","RD","TH"][place]||"TH"),W-8,20,9,"#ffd23e","right");
-        px_txt(Math.round(speed/55)+" KM/H",W/2,H-10,7,"#fff");
-        px_txt(""+this.score,W/2,20,11,"#ffd23e");
-        // item slot
-        ctx.strokeStyle="#9b6bff";ctx.lineWidth=2;ctx.strokeRect(W/2-22,30,44,26);
-        px_txt(item?item.toUpperCase().slice(0,5):"—",W/2,48,7,item?"#46ff9c":"#5a4a7a");
-        if(bannerT>0) px_txt(banner,W/2,H/2,11,"#ffd23e");
-      }};
-  }
 
   /* ════════════════════ GAMES ════════════════════ */
 
@@ -486,7 +249,7 @@
         }
         for(var g=0;g<ghosts.length;g++){
           var gh=ghosts[g];
-          step(gh, (gh.fr?3.2:4.4+level*0.35), dt, function(e){
+          step(gh, (gh.fr?3.2:4.4+level*0.35)*diffMult(), dt, function(e){
             var opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(function(v){
               return !isW(e.tx+v[0],e.ty+v[1]) && !(v[0]===-e.dx&&v[1]===-e.dy);
             });
@@ -919,27 +682,7 @@
       }};
   });
 
-  /* 8. Turbo Circuit (pseudo-3D circuit sprint — 3 fast laps vs rivals) */
-  reg("dodger","3-lap battle race vs 5 AI rivals. Steer Left/Right, drive through blue ? boxes for an item, press A to use it: BOOST, SHELL (spins a kart ahead), MINE (drop a trap), SHIELD. Rivals grab items and fight back too — finish on the podium for a big bonus.",
-  function(){
-    return makeRacer({
-      laps:3, rivals:5, maxSpd:13000, boost:false,
-      sky1:"#0a1830", sky2:"#1a2e52", grass:"#13241a", grass2:"#0f1c14",
-      road:"#2a2150", road2:"#241b46", rival:"#ff3ea5", player:"#27e8ff"
-    });
-  });
-
-  /* 9. Kart Kombat (Mario-Kart-style: 3 laps, rivals + green boost pads) */
-  reg("kart","Mario-Kart-style item battle! Steer Left/Right, grab blue ? boxes and press A to fire your item: BOOST, SHELL (spin a kart), MINE, SHIELD. Green pads give bonus turbo. 5 AI rivals throw items back at you — survive 3 laps and beat them to the line.",
-  function(){
-    return makeRacer({
-      laps:3, rivals:5, maxSpd:12000, boost:true,
-      sky1:"#1a0e30", sky2:"#3a1a52", grass:"#0e2418", grass2:"#0a1c12",
-      road:"#3a2a6b", road2:"#332459", rival:"#ffd23e", player:"#46ff9c"
-    });
-  });
-
-  /* 10. FPS Arena (first-person campaign with between-level armory shop) */
+  /* FPS Arena (first-person campaign with between-level armory shop) */
   reg("shooter","First-person arena. Left/Right turns the view, A / Space fires. Clear 4 waves per LEVEL. Between levels the ARMORY opens — spend creds on better guns (pistol → SMG → shotgun → rifle → plasma). Earn creds for every kill.",
   function(){
     var HFOV=Math.PI/3, WPL=4;
@@ -960,7 +703,7 @@
       for(var i=0;i<n;i++){
         var armored=level>=3 && Math.random()<0.25+level*0.03;
         en.push({ ang:rnd(-Math.PI,Math.PI), dist:rnd(640,940),
-                  spd:34+wave*6+level*9, hp:armored?2:1, arm:armored, d:false });
+                  spd:(34+wave*6+level*9)*diffMult(), hp:armored?2:1, arm:armored, d:false });
       }
     }
     spawn();
@@ -1389,7 +1132,8 @@
         if(IN.held.up)   py-=330*dt;
         if(IN.held.down) py+=330*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
-        var tgt=by-PH/2-ay, mv=Math.max(-280,Math.min(280,tgt*6));
+        var aiCap=280*diffMult();
+        var tgt=by-PH/2-ay, mv=Math.max(-aiCap,Math.min(aiCap,tgt*6));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
         if(by<8){by=8;bvy=Math.abs(bvy);} if(by>H-8){by=H-8;bvy=-Math.abs(bvy);}
@@ -1480,7 +1224,8 @@
         }
         if(spawnN>0){ spawnT-=dt;
           if(spawnT<=0){ spawnT=betw; spawnN--;
-            creeps.push({seg:0,x:wpx[0][0],y:wpx[0][1],hp:18+wave*9,mx:18+wave*9,spd:46+wave*3}); alive++;
+            var chp=Math.round((18+wave*9)*diffMult()), cspd=(46+wave*3)*diffMult();
+            creeps.push({seg:0,x:wpx[0][0],y:wpx[0][1],hp:chp,mx:chp,spd:cspd}); alive++;
           }
         }
         for(var c=0;c<creeps.length;c++){
@@ -2090,7 +1835,7 @@
     var roundTeams=[], seriesResults=[], playerSlot=0, oppIdx=0, champIdx=-1;
     var sYou=0, sOpp=0, pPts=0, aPts=0, win=false;
     var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false;
-    function aiSpd(){ return 250+round*38; }
+    function aiSpd(){ return (250+round*38) * diffMult(); }
     function serve(){ bx=W/2; by=H/2; var sp=210+round*8+rallies*5; bvx=-sp; bvy=rnd(-0.3,0.3)*sp; served=true; }
     function newGame(){ pPts=0; aPts=0; py=H/2-PH/2; ay=H/2-PH/2; served=false; bvx=0; bvy=0; bx=W/2; by=H/2; rallies=0; }
     // resolve a round: returns winners + per-match [winnerGames, loserGames]
@@ -4460,5 +4205,9 @@
     ACTIVE = true;
   }
 
-  window.DAGames = { launchByName: launchByName };
+  window.DAGames = {
+    launchByName: launchByName,
+    setDifficulty: setDifficulty,
+    getDifficulty: getDifficulty
+  };
 })();

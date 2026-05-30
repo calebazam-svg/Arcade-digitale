@@ -142,25 +142,6 @@
     if (sound) beep(660, 0.1);
   });
 
-  /* ---- AI difficulty cycle (Easy / Normal / Hard) ---- */
-  const DIFFS = ["easy","normal","hard"];
-  function refreshDiffBtn(){
-    const d = (window.DAGames && window.DAGames.getDifficulty && window.DAGames.getDifficulty()) || "normal";
-    const btn = $("#diffBtn");
-    btn.textContent = d.toUpperCase();
-    btn.className = "diff " + d;
-  }
-  window.refreshDiffBtn = refreshDiffBtn;
-  refreshDiffBtn();
-  $("#diffBtn").addEventListener("click", () => {
-    const cur = (window.DAGames && window.DAGames.getDifficulty && window.DAGames.getDifficulty()) || "normal";
-    const idx = DIFFS.indexOf(cur);
-    const next = DIFFS[(idx + 1) % DIFFS.length];
-    if (window.DAGames && window.DAGames.setDifficulty) window.DAGames.setDifficulty(next);
-    refreshDiffBtn();
-    beep(700, 0.06); setTimeout(() => beep(990, 0.1), 60);
-    toast("AI Difficulty: " + next.toUpperCase());
-  });
 
   /* ---- Interactions ---- */
   function toast(msg) {

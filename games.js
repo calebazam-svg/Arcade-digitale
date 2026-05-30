@@ -103,8 +103,11 @@
       });
     });
   }
+  var DIFF_GAMES = {shooter:1, galaxy:1, heist:1, pong:1, pongcup:1};
   function refreshDiffSel(){
     if(!diffSelEl) return;
+    var id = curId==="mystery" ? "mystery" : curId;
+    diffSelEl.style.display = DIFF_GAMES[id] ? "flex" : "none";
     diffSelEl.querySelectorAll("button").forEach(function(b){
       b.className = b.dataset.d === DA_DIFF ? "active "+DA_DIFF : "";
     });
@@ -271,7 +274,7 @@
         }
         for(var g=0;g<ghosts.length;g++){
           var gh=ghosts[g];
-          step(gh, (gh.fr?3.2:4.4+level*0.35)*diffMult(), dt, function(e){
+          step(gh, (gh.fr?3.2:4.4+level*0.35), dt, function(e){
             var opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(function(v){
               return !isW(e.tx+v[0],e.ty+v[1]) && !(v[0]===-e.dx&&v[1]===-e.dy);
             });
@@ -430,7 +433,7 @@
   function(){
     var R=22, px=W/2, py=H-46, fx=0, fy=-1, mv=120, level=1;
     var bullets=[], guards=[], bodies=[], cash=[], fireCD=0;
-    var CONE=Math.PI/3.2, SIGHT=118;     // half-angle & range of a guard's vision
+    var CONE=Math.PI/3.2 * diffMult(), SIGHT=118 * diffMult();
     function placeAway(size){
       var x,y,tries=0;
       do{ x=rnd(34,W-34-size); y=rnd(34,H-96); tries++; }
@@ -448,7 +451,7 @@
       for(var i=0;i<nG;i++){
         var rt=makeRoute();
         guards.push({ x:rt[0].x, y:rt[0].y, route:rt, wp:1,
-          spd:42+level*4, alert:0, hd:0 });   // hd = heading angle
+          spd:(42+level*4)*diffMult(), alert:0, hd:0 });
       }
       for(var c=0;c<nC;c++){ var k=placeAway(18); cash.push({x:k.x,y:k.y}); }
     }
@@ -893,8 +896,8 @@
         spawnT-=dt;
         if(spawnT<=0){
           en.push({ a:rnd(-.9,.9), b:rnd(-.7,.7), z:1000,
-                    spd:150+time*9, sw:rnd(-.25,.25), d:false });
-          spawnT=Math.max(0.45,1.3-time*0.022);
+                    spd:(150+time*9)*diffMult(), sw:rnd(-.25,.25), d:false });
+          spawnT=Math.max(0.45,1.3-time*0.022)/diffMult();
         }
         for(var e=0;e<en.length;e++){
           if(en[e].d)continue;
@@ -1246,8 +1249,7 @@
         }
         if(spawnN>0){ spawnT-=dt;
           if(spawnT<=0){ spawnT=betw; spawnN--;
-            var chp=Math.round((18+wave*9)*diffMult()), cspd=(46+wave*3)*diffMult();
-            creeps.push({seg:0,x:wpx[0][0],y:wpx[0][1],hp:chp,mx:chp,spd:cspd}); alive++;
+            creeps.push({seg:0,x:wpx[0][0],y:wpx[0][1],hp:18+wave*9,mx:18+wave*9,spd:46+wave*3}); alive++;
           }
         }
         for(var c=0;c<creeps.length;c++){

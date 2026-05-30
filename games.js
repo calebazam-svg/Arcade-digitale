@@ -2257,67 +2257,81 @@
     ];
 
     // Interior decor — pure visual + customer flow boost
-    function decCarpet(){
-      rect(48,196,W-96,24,"#7a1a3a");
-      rect(52,200,W-104,16,"#aa2a4a");
-      for(var i=0;i<7;i++) rect(56+i*52,206,28,4,"#cd3a5a");
+    function decCarpet(v){
+      var P=[["#7a1a3a","#aa2a4a","#cd3a5a"],["#1a3a7a","#2a4aaa","#3a5acd"],["#1a5a2a","#2a8a3a","#3aaa4a"],["#7a5a1a","#aa8a2a","#cdaa3a"]];
+      var p=P[v||0];
+      rect(48,196,W-96,24,p[0]);
+      rect(52,200,W-104,16,p[1]);
+      for(var i=0;i<7;i++) rect(56+i*52,206,28,4,p[2]);
     }
-    function decTables(){
+    function decTables(v){
+      var P=[["#3a2a1a","#5a4a3a","#5a3a3a","#3a2a3a"],["#7a5a3a","#aa8a5a","#9a7a4a","#5a4a2a"],["#dddddd","#aaaaaa","#888888","#444444"],["#1a1a1a","#2a2a2a","#1a1a1a","#000000"]];
+      var p=P[v||0];
       for(var i=0;i<3;i++){
         var tx=110+i*120, ty=178;
-        rect(tx-18,ty,36,5,"#3a2a1a");
-        rect(tx-3,ty+5,6,16,"#5a4a3a");
-        rect(tx-25,ty+9,8,4,"#5a3a3a");
-        rect(tx+17,ty+9,8,4,"#5a3a3a");
-        rect(tx-25,ty+13,8,9,"#3a2a3a");
-        rect(tx+17,ty+13,8,9,"#3a2a3a");
+        rect(tx-18,ty,36,5,p[0]);
+        rect(tx-3,ty+5,6,16,p[1]);
+        rect(tx-25,ty+9,8,4,p[2]);
+        rect(tx+17,ty+9,8,4,p[2]);
+        rect(tx-25,ty+13,8,9,p[3]);
+        rect(tx+17,ty+13,8,9,p[3]);
       }
     }
-    function decPlants(){
-      [[26,176],[W-44,176]].forEach(function(p){
-        rect(p[0],p[1],18,18,"#5a3a2a");
-        rect(p[0]+2,p[1]+2,14,4,"#7a4a2a");
-        fillC("#2a6a3a");
-        ctx.beginPath();ctx.arc(p[0]+9,p[1]-3,14,0,7);ctx.fill();
-        fillC("#4a8a4a");
-        ctx.beginPath();ctx.arc(p[0]+5,p[1]-7,7,0,7);ctx.fill();
-        ctx.beginPath();ctx.arc(p[0]+13,p[1]-9,7,0,7);ctx.fill();
+    function decPlants(v){
+      var P=[["#2a6a3a","#4a8a4a"],["#3a8a7a","#5aaa9a"],["#5a8a3a","#7aaa5a"],["#8a5a2a","#aa7a3a"]];
+      var p=P[v||0];
+      [[26,176],[W-44,176]].forEach(function(pp){
+        rect(pp[0],pp[1],18,18,"#5a3a2a");
+        rect(pp[0]+2,pp[1]+2,14,4,"#7a4a2a");
+        fillC(p[0]);
+        ctx.beginPath();ctx.arc(pp[0]+9,pp[1]-3,14,0,7);ctx.fill();
+        fillC(p[1]);
+        ctx.beginPath();ctx.arc(pp[0]+5,pp[1]-7,7,0,7);ctx.fill();
+        ctx.beginPath();ctx.arc(pp[0]+13,pp[1]-9,7,0,7);ctx.fill();
       });
     }
-    function decLights(){
+    function decLights(v){
+      var P=["#ffd23e","#27e8ff","#ff3ea5","#46ff9c"];
+      var c=P[v||0];
       for(var i=0;i<3;i++){
         var lx=110+i*120;
         rect(lx-1,30,2,24,"#1a1a1a");
         fillC("#1a1a1a");
         ctx.beginPath();ctx.arc(lx,58,9,Math.PI,0);ctx.fill();
-        fillC("#ffd23e");
+        fillC(c);
         ctx.beginPath();ctx.arc(lx,60,5,0,7);ctx.fill();
-        ctx.save();ctx.globalAlpha=.25;fillC("#ffd23e");
+        ctx.save();ctx.globalAlpha=.25;fillC(c);
         ctx.beginPath();ctx.arc(lx,62,20,0,7);ctx.fill();ctx.restore();
       }
     }
-    function decArt(){
+    function decArt(v){
+      var P=[["#2a4a7a","#5a2a4a"],["#7a2a2a","#2a5a3a"],["#5a2a7a","#7a5a2a"],["#3a3a3a","#5a5a5a"]];
+      var p=P[v||0];
       rect(20,80,42,32,"#7a4a2a");
-      rect(23,83,36,26,"#2a4a7a");
+      rect(23,83,36,26,p[0]);
       fillC("#46ff9c");
       ctx.beginPath();ctx.arc(33,98,5,0,7);ctx.fill();
       rect(38,100,16,4,"#ffd23e");
       rect(W-62,80,42,32,"#7a4a2a");
-      rect(W-59,83,36,26,"#5a2a4a");
+      rect(W-59,83,36,26,p[1]);
       fillC("#ffd23e");
       ctx.beginPath();ctx.moveTo(W-48,86);ctx.lineTo(W-62,106);ctx.lineTo(W-32,106);ctx.closePath();ctx.fill();
     }
-    function decTV(){
+    function decTV(v){
+      var P=[["#1a3a5a","#27e8ff"],["#3a1a1a","#ff3ea5"],["#1a3a1a","#46ff9c"],["#3a3a1a","#ffd23e"]];
+      var p=P[v||0];
       rect(W/2-36,76,72,42,"#1a1a1a");
-      rect(W/2-33,79,66,36,"#1a3a5a");
-      fillC("#27e8ff");ctx.fillRect(W/2-30,82,60,30);
+      rect(W/2-33,79,66,36,p[0]);
+      fillC(p[1]);ctx.fillRect(W/2-30,82,60,30);
       fillC("#ff3ea5");rect(W/2-20,86,12,8,"#ff3ea5");
       fillC("#ffd23e");rect(W/2-5,90,14,12,"#ffd23e");
       fillC("#46ff9c");rect(W/2+12,94,8,12,"#46ff9c");
     }
-    function decBar(){
-      rect(20,130,140,50,"#3a1a1a");
-      rect(20,130,140,8,"#5a2a1a");
+    function decBar(v){
+      var P=[["#3a1a1a","#5a2a1a"],["#dddddd","#aaaaaa"],["#3a3a3a","#5a5a5a"],["#5a3a1a","#aa6a2a"]];
+      var p=P[v||0];
+      rect(20,130,140,50,p[0]);
+      rect(20,130,140,8,p[1]);
       rect(20,178,140,4,"#1a0a0a");
       var cols=["#46ff9c","#27e8ff","#ffd23e","#ff3ea5","#9b6bff","#ff8a3e"];
       for(var i=0;i<6;i++){
@@ -2326,8 +2340,10 @@
         rect(bx+1,106,8,6,"#222");
       }
     }
-    function decJuke(){
-      rect(W-58,128,40,52,"#5a1a3a");
+    function decJuke(v){
+      var P=["#5a1a3a","#1a3a5a","#1a5a3a","#5a3a1a"];
+      var c=P[v||0];
+      rect(W-58,128,40,52,c);
       rect(W-55,131,34,18,"#0a0613");
       rect(W-50,135,10,10,"#ffd23e");
       ctx.save();ctx.globalAlpha=.6;fillC("#fff");
@@ -2335,43 +2351,59 @@
       rect(W-55,154,34,4,"#ff8a3e");
       for(var i=0;i<4;i++) rect(W-52+i*8,164,5,4,["#27e8ff","#46ff9c","#ffd23e","#ff3ea5"][i]);
     }
-    function decBooths(){
+    function decBooths(v){
+      var P=[["#5a2a3a","#7a3a4a","#aa4a5a"],["#2a4a5a","#3a6a7a","#4a8aaa"],["#3a2a1a","#5a3a2a","#7a5a3a"],["#1a1a1a","#2a2a2a","#3a3a3a"]];
+      var p=P[v||0];
       for(var i=0;i<2;i++){
         var by=128+i*28;
-        rect(180,by,90,5,"#5a2a3a");
-        rect(180,by+5,90,18,"#7a3a4a");
-        rect(184,by+8,82,12,"#aa4a5a");
+        rect(180,by,90,5,p[0]);
+        rect(180,by+5,90,18,p[1]);
+        rect(184,by+8,82,12,p[2]);
         rect(180,by+23,90,3,"#2a1a2a");
       }
     }
-    function decChandelier(){
+    function decChandelier(v){
+      var P=[["#ffd23e","#fff"],["#cccccc","#fff"],["#cc8a3a","#ffd23e"],["#bbeeff","#fff"]];
+      var p=P[v||0];
       var cx=W/2, cy=30;
       rect(cx-1,cy,2,18,"#3a2a3a");
-      fillC("#ffd23e");
+      fillC(p[0]);
       ctx.beginPath();
       ctx.moveTo(cx-22,cy+18);ctx.lineTo(cx+22,cy+18);
       ctx.lineTo(cx+30,cy+30);ctx.lineTo(cx-30,cy+30);
       ctx.closePath();ctx.fill();
       for(var i=0;i<6;i++){
         var crx=cx-25+i*10;
-        fillC("#fff");
+        fillC(p[1]);
         ctx.beginPath();ctx.moveTo(crx,cy+30);ctx.lineTo(crx-3,cy+44);ctx.lineTo(crx+3,cy+44);ctx.closePath();ctx.fill();
       }
-      ctx.save();ctx.globalAlpha=.3;fillC("#ffd23e");
+      ctx.save();ctx.globalAlpha=.3;fillC(p[0]);
       ctx.beginPath();ctx.arc(cx,cy+34,38,0,7);ctx.fill();ctx.restore();
     }
 
     var DECOR=[
-      {id:"carpet",     n:"CARPET",         cost:600,   score:1, place:decCarpet},
-      {id:"plants",     n:"POTTED PLANTS",  cost:300,   score:1, place:decPlants},
-      {id:"tables",     n:"NICE TABLES",    cost:800,   score:2, place:decTables},
-      {id:"lights",     n:"PENDANT LIGHTS", cost:1200,  score:2, place:decLights},
-      {id:"artwork",    n:"WALL ART",       cost:1500,  score:2, place:decArt},
-      {id:"tv",         n:"FLAT-SCREEN TV", cost:2000,  score:3, place:decTV},
-      {id:"jukebox",    n:"JUKEBOX",        cost:3500,  score:3, place:decJuke},
-      {id:"booths",     n:"BOOTH SEATING",  cost:5000,  score:4, place:decBooths},
-      {id:"bar",        n:"FULL BAR",       cost:8000,  score:5, place:decBar},
-      {id:"chandelier", n:"CHANDELIER",     cost:15000, score:6, place:decChandelier}
+      {id:"carpet",     n:"CARPET",         cost:600,   score:1, place:decCarpet,    styles:["RED","BLUE","GREEN","GOLD"]},
+      {id:"plants",     n:"POTTED PLANTS",  cost:300,   score:1, place:decPlants,    styles:["TROPICAL","FERN","CACTUS","AUTUMN"]},
+      {id:"tables",     n:"NICE TABLES",    cost:800,   score:2, place:decTables,    styles:["WALNUT","OAK","WHITE","BLACK"]},
+      {id:"lights",     n:"PENDANT LIGHTS", cost:1200,  score:2, place:decLights,    styles:["WARM","COOL","PINK","GREEN"]},
+      {id:"artwork",    n:"WALL ART",       cost:1500,  score:2, place:decArt,       styles:["BLUE","RED","PURPLE","MONO"]},
+      {id:"tv",         n:"FLAT-SCREEN TV", cost:2000,  score:3, place:decTV,        styles:["NEON","CLASSIC","RETRO","GAMING"]},
+      {id:"jukebox",    n:"JUKEBOX",        cost:3500,  score:3, place:decJuke,      styles:["ROSE","NAVY","EMERALD","COPPER"]},
+      {id:"booths",     n:"BOOTH SEATING",  cost:5000,  score:4, place:decBooths,    styles:["BURGUNDY","TEAL","BROWN","BLACK"]},
+      {id:"bar",        n:"FULL BAR",       cost:8000,  score:5, place:decBar,       styles:["WOOD","MARBLE","STEEL","RUSTIC"]},
+      {id:"chandelier", n:"CHANDELIER",     cost:15000, score:6, place:decChandelier,styles:["GOLD","SILVER","COPPER","CRYSTAL"]}
+    ];
+
+    // Kitchen-equipment MODS — bought per-restaurant, tweak cooking minigames
+    var MODS=[
+      {id:"poursp",   n:"POURSPOUT",        cost:1500,  desc:"POUR green zone +30%"},
+      {id:"metro",    n:"METRONOME",        cost:2000,  desc:"PREP / CHOP / SEASON window +35%"},
+      {id:"heat",     n:"HEAT SHIELD",      cost:3000,  desc:"COOK / FRY / BOIL zone +25%"},
+      {id:"blade",    n:"PRECISION BLADE",  cost:4000,  desc:"SLICE target zone +40%"},
+      {id:"autoplate",n:"AUTO PLATING",     cost:5000,  desc:"PLATE step auto-completes at 90%"},
+      {id:"turbo",    n:"TURBO BURNER",     cost:6000,  desc:"COOK / FRY / BOIL bar 20% slower (easier)"},
+      {id:"truffle",  n:"TRUFFLE OIL",      cost:8000,  desc:"+1 star chance on dishes $20+"},
+      {id:"sousplus", n:"SOUS+",            cost:10000, desc:"Sous chef now auto-handles steps 1 AND 2"}
     ];
 
     var MKT=[
@@ -2960,13 +2992,17 @@
         if(save.unlocked.indexOf(g.menu[u])<0) save.unlocked.push(g.menu[u]);
       }
       return { name:name, locId:locIdx, genre:g.id, menu:g.menu.slice(),
-        mkt:0, truck:0, ups:{}, employees:{}, decor:{}, supplies:40, reviews:[], served:0, revenue:0 };
+        mkt:0, truck:0, ups:{}, employees:{}, decor:{}, mods:{}, supplies:40, reviews:[], served:0, revenue:0 };
     }
     function isUnlocked(id){ return (save.unlocked||["coffee","toast"]).indexOf(id)>=0; }
+    function decorOwned(r, id){
+      var v = r && r.decor && r.decor[id];
+      return v!==undefined && v!==false && v!==null;
+    }
     function decorScore(r){
       if(!r||!r.decor) return 0;
       var s=0;
-      for(var i=0;i<DECOR.length;i++) if(r.decor[DECOR[i].id]) s+=DECOR[i].score;
+      for(var i=0;i<DECOR.length;i++) if(decorOwned(r, DECOR[i].id)) s+=DECOR[i].score;
       return s;
     }
     // Manager passive income: ~55% of what an active day would yield, no skill check
@@ -3075,26 +3111,37 @@
     function loadCookStep(){
       var item=cust.item, stId=item.steps[cookStepIdx];
       cookStation=STATIONS[stId];
-      var r=activeR(), pro=!!r.ups.stove;
-      // Difficulty scales with item value: cheap items are easy, expensive ones are tight
+      var r=activeR(), pro=!!r.ups.stove, mods=r.mods||{};
       var diff = Math.min(1.7, 0.6 + item.sell/55);
       var t=cookStation.type;
+      // AUTO PLATING mod: skip plate steps with 0.9 accuracy
+      if(mods.autoplate && stId==="plate"){
+        recordStepResult(0.9);
+        return;
+      }
+      // Mod zone bonus calculation
+      var zoneBoost = 1.0;
+      if(mods.heat && (stId==="cook"||stId==="fry"||stId==="boil")) zoneBoost *= 1.25;
+      if(mods.poursp && stId==="pour")  zoneBoost *= 1.30;
+      if(mods.metro  && (stId==="prep"||stId==="chop"||stId==="season")) zoneBoost *= 1.35;
+      if(mods.blade  && stId==="slice") zoneBoost *= 1.40;
+      var spdBoost = 1.0;
+      if(mods.turbo  && (stId==="cook"||stId==="fry"||stId==="boil")) spdBoost *= 0.80;
       if(t==="timing"){
-        // shrink green zone around its centre based on difficulty
         var c=(cookStation.lo+cookStation.hi)/2;
-        var halfRange=(cookStation.hi-cookStation.lo)/(2*diff);
+        var halfRange=(cookStation.hi-cookStation.lo)/(2*diff) * zoneBoost;
         cookStepData={ bar:0,
           lo: c - halfRange - (pro?0.04:0),
           hi: c + halfRange + (pro?0.04:0),
-          spd: cookStation.spd * diff * (pro?0.82:1) };
+          spd: cookStation.spd * diff * (pro?0.82:1) * spdBoost };
       } else if(t==="rhythm"){
         cookStepData={ taps:cookStation.taps, done:0, results:[], pos:0,
           spd: cookStation.spd * diff * (pro?0.85:1),
-          zoneW: cookStation.zoneW * (pro?1.4:1) / diff };
+          zoneW: cookStation.zoneW * (pro?1.4:1) / diff * zoneBoost };
       } else if(t==="prec"){
         cookStepData={ pos:0, dir:1,
           spd: cookStation.spd * diff * (pro?0.85:1),
-          zone: cookStation.zone * (pro?1.4:1) / diff,
+          zone: cookStation.zone * (pro?1.4:1) / diff * zoneBoost,
           target: 0.4 + Math.random()*0.2 };
       }
     }
@@ -3103,7 +3150,11 @@
       var r=activeR(); if(!cust) return;
       if(r.supplies<=0){ setMsg("OUT OF SUPPLIES"); return; }
       cookActive=true; cookStepIdx=0; cookSteps=cust.item.steps.length; cookResults=[];
-      if(r.ups.sous && cookSteps>1){ cookResults.push(0.85); cookStepIdx=1; }
+      if(r.ups.sous){
+        // SOUS+ mod handles 2 steps instead of 1
+        var auto = (r.mods && r.mods.sousplus && cookSteps>2) ? 2 : (cookSteps>1 ? 1 : 0);
+        for(var as=0; as<auto; as++){ cookResults.push(0.85); cookStepIdx++; }
+      }
       loadCookStep();
     }
 
@@ -3166,6 +3217,7 @@
       var stars = acc>=0.85?5:acc>=0.65?4:acc>=0.45?3:acc>=0.25?2:1;
       if(r.ups.decor && stars<5 && Math.random()<0.45) stars++;
       if(r.employees && r.employees.marketer && stars<5 && Math.random()<0.35) stars++;
+      if(r.mods && r.mods.truffle && cust.item.sell>=20 && stars<5 && Math.random()<0.3) stars++;
       if(LOCS[r.locId].lux>=3 && stars<3 && Math.random()<0.3) stars=Math.max(1,stars-1);
       // tier multiplier — higher-tier locations charge way more per dish
       var tierMult = 1 + LOCS[r.locId].lux * 0.6;
@@ -3278,10 +3330,11 @@
       // owned decor layered floor → wall → ceiling
       var order=["carpet","artwork","tv","bar","plants","jukebox","booths","tables","lights","chandelier"];
       for(var i=0;i<order.length;i++){
-        if(r.decor && r.decor[order[i]]){
+        var ov = r.decor && r.decor[order[i]];
+        if(ov!==undefined && ov!==false && ov!==null){
           var d=null;
           for(var j=0;j<DECOR.length;j++) if(DECOR[j].id===order[i]){ d=DECOR[j]; break; }
-          if(d) d.place();
+          if(d) d.place(ov===true ? 0 : (ov|0));
         }
       }
       // bottom divider
@@ -3665,7 +3718,7 @@
         }
 
         if(screen==="hub"){
-          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","SELL LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","INTERIOR","MODS","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","SELL LOCATION","RENAME","RESET","QUIT"];
           if(IN.edge.up) sel=(sel+opts.length-1)%opts.length;
           if(IN.edge.down) sel=(sel+1)%opts.length;
           if(IN.edge.action){
@@ -3674,6 +3727,7 @@
             else if(o==="MENU"){ screen="menu"; sel=0; }
             else if(o==="STAFF"){ screen="staff"; sel=0; }
             else if(o==="INTERIOR"){ screen="interior"; sel=0; }
+            else if(o==="MODS"){ screen="mods"; sel=0; }
             else if(o==="SHOP"){ screen="shop"; sel=0; shopItems=buildShopItems(); }
             else if(o==="WORLD"){ screen="world"; worldList=genWorld(); worldSel=0; }
             else if(o==="REVIEWS"){ screen="reviews"; }
@@ -3799,15 +3853,45 @@
           if(exitBtnClicked()){ screen="hub"; sel=0; return; }
           if(IN.edge.up) sel=(sel+DECOR.length-1)%DECOR.length;
           if(IN.edge.down) sel=(sel+1)%DECOR.length;
+          var rr2=activeR(), dc=DECOR[sel];
+          if(decorOwned(rr2, dc.id)){
+            // Owned: left/right cycles the style variant; A also cycles
+            var cur = rr2.decor[dc.id]; if(cur===true) cur=0;
+            var n = dc.styles ? dc.styles.length : 1;
+            if(IN.edge.right || IN.edge.action){ rr2.decor[dc.id] = (cur+1)%n; saveAll(); }
+            else if(IN.edge.left){
+              // Treat ◄ as "back to hub" when at default style; otherwise cycle backward
+              if(cur===0){ screen="hub"; sel=0; return; }
+              rr2.decor[dc.id] = (cur+n-1)%n; saveAll();
+            }
+          } else {
+            if(IN.edge.action){
+              if(save.cash>=dc.cost){
+                save.cash-=dc.cost;
+                if(!rr2.decor) rr2.decor={};
+                rr2.decor[dc.id]=0;
+                saveAll();
+                setMsg("INSTALLED "+dc.n);
+              } else setMsg("NOT ENOUGH CASH");
+            }
+            if(IN.edge.left){ screen="hub"; sel=0; }
+          }
+          return;
+        }
+
+        if(screen==="mods"){
+          if(exitBtnClicked()){ screen="hub"; sel=0; return; }
+          if(IN.edge.up) sel=(sel+MODS.length-1)%MODS.length;
+          if(IN.edge.down) sel=(sel+1)%MODS.length;
           if(IN.edge.action){
-            var rr2=activeR(), dc=DECOR[sel];
-            if(rr2.decor && rr2.decor[dc.id]) setMsg("ALREADY OWNED");
-            else if(save.cash>=dc.cost){
-              save.cash-=dc.cost;
-              if(!rr2.decor) rr2.decor={};
-              rr2.decor[dc.id]=true;
+            var rr3=activeR(), md=MODS[sel];
+            if(rr3.mods && rr3.mods[md.id]) setMsg("ALREADY INSTALLED");
+            else if(save.cash>=md.cost){
+              save.cash-=md.cost;
+              if(!rr3.mods) rr3.mods={};
+              rr3.mods[md.id]=true;
               saveAll();
-              setMsg("INSTALLED "+dc.n);
+              setMsg("INSTALLED "+md.n);
             } else setMsg("NOT ENOUGH CASH");
           }
           if(IN.edge.left){ screen="hub"; sel=0; }
@@ -3918,7 +4002,7 @@
           px_txt(rat?rat.toFixed(1)+"★":"NO REVIEWS",96,96,7,rat>=4?"#46ff9c":rat>=2.5?"#ffd23e":"#ff8a8a");
           px_txt("SERVED "+r.served,W/2,96,7,"#27e8ff");
           px_txt("SUP "+r.supplies+"/"+maxSupplies(r),W-96,96,7,r.supplies>10?"#fff":"#ff8a8a");
-          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","SELL LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","INTERIOR","MODS","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","SELL LOCATION","RENAME","RESET","QUIT"];
           var top=108, h=16;
           for(var i=0;i<opts.length;i++){
             var y=top+i*h, hi=i===sel;
@@ -4029,22 +4113,45 @@
         if(screen==="interior"){
           var r=activeR();
           drawInterior(r);
-          // header info row
           px_txt("INTERIOR — DECOR +"+decorScore(r),W/2,46,9,"#ffd23e");
-          // decor selector strip below scene
           var listY=226, h=22, maxV=5;
           var startI=Math.max(0, Math.min(DECOR.length-maxV, sel-Math.floor(maxV/2)));
           for(var i=0;i<maxV && (startI+i)<DECOR.length;i++){
             var idx=startI+i, item=DECOR[idx], y=listY+i*h, hi=idx===sel;
-            var owned = r.decor && r.decor[item.id];
+            var owned = decorOwned(r, item.id);
             var can = owned || save.cash>=item.cost;
             if(hi) rect(8,y-13,W-16,h,"#1a2350");
             px_txt(item.n,16,y+2,7,hi?"#fff":(owned?"#46ff9c":(can?"#cdbff0":"#5a4a7a")),"left");
-            px_txt("+"+item.score,180,y+2,6,"#9b6bff","left");
-            if(owned) px_txt("OWNED",W-16,y+2,7,"#46ff9c","right");
-            else px_txt(fmt$(item.cost),W-16,y+2,8,can?"#ffd23e":"#ff8a8a","right");
+            px_txt("+"+item.score,128,y+2,6,"#9b6bff","left");
+            if(owned){
+              var v = r.decor[item.id]; if(v===true) v=0;
+              var label = (item.styles && item.styles[v]) || "STYLE "+(v+1);
+              px_txt("◄ "+label+" ►", W-16, y+2, 6, hi?"#27e8ff":"#9b8fc7", "right");
+              if(hi) px_txt("A cycles style", W-16, y+12, 5, "#5a7a9a", "right");
+            } else {
+              px_txt(fmt$(item.cost),W-16,y+2,8,can?"#ffd23e":"#ff8a8a","right");
+            }
           }
           if(msgT>0) px_txt(msg,W/2,H-6,6,"#46ff9c");
+          return;
+        }
+
+        if(screen==="mods"){
+          px_txt("KITCHEN MODS",W/2,46,11,"#27e8ff");
+          var r=activeR();
+          var top=72, h=36;
+          for(var i=0;i<MODS.length;i++){
+            var md=MODS[i], y=top+i*h, hi=i===sel;
+            var installed = r.mods && r.mods[md.id];
+            if(hi) rect(8,y-14,W-16,h-4,"#1a2350");
+            ctx.strokeStyle=hi?"#27e8ff":(installed?"#46ff9c":"#3a2a6b");ctx.lineWidth=1;
+            ctx.strokeRect(8,y-14,W-16,h-4);
+            px_txt(md.n,16,y+2,8,installed?"#46ff9c":hi?"#fff":"#cdbff0","left");
+            px_txt(md.desc,16,y+14,5,"#9b8fc7","left");
+            if(installed) px_txt("ON",W-16,y+2,8,"#46ff9c","right");
+            else px_txt(fmt$(md.cost),W-16,y+2,9,save.cash>=md.cost?"#ffd23e":"#ff8a8a","right");
+          }
+          if(msgT>0) px_txt(msg,W/2,H-10,7,"#46ff9c");
           return;
         }
 

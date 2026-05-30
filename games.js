@@ -1157,11 +1157,13 @@
         if(IN.held.up)   py-=330*dt;
         if(IN.held.down) py+=330*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
-        var aiCap = DA_DIFF==="easy" ? 200 : DA_DIFF==="hard" ? 360 : 280;
-        var trackHot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 6.0 : 4.8;
-        var trackLazy = DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 3.5 : 2.3;
+        var aiCap = DA_DIFF==="easy" ? 200 : DA_DIFF==="hard" ? 440 : 290;
+        var trackHot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 9.0 : 5.2;
+        var trackLazy = DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 6.0 : 2.5;
+        var lead = DA_DIFF==="hard" ? 0.18 : 0;
+        var aimY = by + bvy*lead;
         var gain = bvx>0 ? trackHot : trackLazy;
-        var tgt=by-PH/2-ay, mv=Math.max(-aiCap,Math.min(aiCap,tgt*gain));
+        var tgt=aimY-PH/2-ay, mv=Math.max(-aiCap,Math.min(aiCap,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
         if(by<8){by=8;bvy=Math.abs(bvy);} if(by>H-8){by=H-8;bvy=-Math.abs(bvy);}
@@ -1897,7 +1899,7 @@
     var sYou=0, sOpp=0, pPts=0, aPts=0, win=false;
     var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false;
     function aiSpd(){
-      var m = DA_DIFF==="easy" ? 0.7 : DA_DIFF==="hard" ? 1.3 : 1.0;
+      var m = DA_DIFF==="easy" ? 0.7 : DA_DIFF==="hard" ? 1.55 : 1.0;
       return (240+round*30) * m;
     }
     function serve(){ bx=W/2; by=H/2; var sp=210+round*8+rallies*5; bvx=-sp; bvy=rnd(-0.3,0.3)*sp; served=true; }
@@ -2001,10 +2003,12 @@
         if(IN.held.down) py+=340*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
         var sp=aiSpd();
-        var hot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 6.0 : 4.8;
-        var lazy= DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 3.5 : 2.3;
+        var hot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 9.0 : 5.2;
+        var lazy= DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 6.0 : 2.5;
+        var lead = DA_DIFF==="hard" ? 0.18 : 0;
+        var aimY = by + bvy*lead;
         var gain = bvx>0 ? hot : lazy;
-        var tgt=by-PH/2-ay, mv=Math.max(-sp,Math.min(sp,tgt*gain));
+        var tgt=aimY-PH/2-ay, mv=Math.max(-sp,Math.min(sp,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
         if(by<8){by=8;bvy=Math.abs(bvy);} if(by>H-8){by=H-8;bvy=-Math.abs(bvy);}

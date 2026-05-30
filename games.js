@@ -1157,8 +1157,10 @@
         if(IN.held.up)   py-=330*dt;
         if(IN.held.down) py+=330*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
-        var d=diffMult(), aiCap=320*d;
-        var gain = bvx>0 ? 7*d : (DA_DIFF==="easy" ? 1.4 : DA_DIFF==="hard" ? 6 : 3.5);
+        var aiCap = DA_DIFF==="easy" ? 200 : DA_DIFF==="hard" ? 360 : 280;
+        var trackHot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 6.0 : 4.8;
+        var trackLazy = DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 3.5 : 2.3;
+        var gain = bvx>0 ? trackHot : trackLazy;
         var tgt=by-PH/2-ay, mv=Math.max(-aiCap,Math.min(aiCap,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
@@ -1892,7 +1894,10 @@
     var roundTeams=[], seriesResults=[], playerSlot=0, oppIdx=0, champIdx=-1;
     var sYou=0, sOpp=0, pPts=0, aPts=0, win=false;
     var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false;
-    function aiSpd(){ return (250+round*38) * diffMult(); }
+    function aiSpd(){
+      var m = DA_DIFF==="easy" ? 0.7 : DA_DIFF==="hard" ? 1.3 : 1.0;
+      return (240+round*30) * m;
+    }
     function serve(){ bx=W/2; by=H/2; var sp=210+round*8+rallies*5; bvx=-sp; bvy=rnd(-0.3,0.3)*sp; served=true; }
     function newGame(){ pPts=0; aPts=0; py=H/2-PH/2; ay=H/2-PH/2; served=false; bvx=0; bvy=0; bx=W/2; by=H/2; rallies=0; }
     // resolve a round: returns winners + per-match [winnerGames, loserGames]
@@ -1994,7 +1999,9 @@
         if(IN.held.down) py+=340*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
         var sp=aiSpd();
-        var gain = bvx>0 ? 7*diffMult() : (DA_DIFF==="easy" ? 1.4 : DA_DIFF==="hard" ? 6 : 3.5);
+        var hot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 6.0 : 4.8;
+        var lazy= DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 3.5 : 2.3;
+        var gain = bvx>0 ? hot : lazy;
         var tgt=by-PH/2-ay, mv=Math.max(-sp,Math.min(sp,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;

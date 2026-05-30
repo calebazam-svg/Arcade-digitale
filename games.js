@@ -16,7 +16,7 @@
 
   /* Global AI difficulty (Easy / Normal / Hard) — read from localStorage */
   var DA_DIFF = (function(){ try{ return localStorage.getItem("da_diff") || "normal"; }catch(e){ return "normal"; } })();
-  function diffMult(){ return DA_DIFF==="easy" ? 0.7 : DA_DIFF==="hard" ? 1.5 : 1.0; }
+  function diffMult(){ return DA_DIFF==="easy" ? 0.45 : DA_DIFF==="hard" ? 1.8 : 1.0; }
   function setDifficulty(d){ DA_DIFF=d; try{ localStorage.setItem("da_diff", d); }catch(e){} }
   function getDifficulty(){ return DA_DIFF; }
 
@@ -447,7 +447,7 @@
     }
     function buildLevel(){
       bullets=[]; guards=[]; bodies=[]; cash=[];
-      var nG=2+level, nC=3+((level/2)|0);
+      var nG=Math.max(1, Math.round((2+level)*diffMult())), nC=3+((level/2)|0);
       for(var i=0;i<nG;i++){
         var rt=makeRoute();
         guards.push({ x:rt[0].x, y:rt[0].y, route:rt, wp:1,
@@ -724,7 +724,7 @@
     var state="play", sel=0, SHOP_N=WEAPONS.length+1;
     function spawn(){
       en=[];
-      var n=Math.min(3+wave+level,11);
+      var n=Math.max(2, Math.min(Math.round((3+wave+level)*diffMult()), 14));
       for(var i=0;i<n;i++){
         var armored=level>=3 && Math.random()<0.25+level*0.03;
         en.push({ ang:rnd(-Math.PI,Math.PI), dist:rnd(640,940),
@@ -1157,8 +1157,9 @@
         if(IN.held.up)   py-=330*dt;
         if(IN.held.down) py+=330*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
-        var aiCap=280*diffMult();
-        var tgt=by-PH/2-ay, mv=Math.max(-aiCap,Math.min(aiCap,tgt*6));
+        var d=diffMult(), aiCap=320*d;
+        var gain = bvx>0 ? 7*d : (DA_DIFF==="easy" ? 1.4 : DA_DIFF==="hard" ? 6 : 3.5);
+        var tgt=by-PH/2-ay, mv=Math.max(-aiCap,Math.min(aiCap,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
         if(by<8){by=8;bvy=Math.abs(bvy);} if(by>H-8){by=H-8;bvy=-Math.abs(bvy);}
@@ -1960,7 +1961,9 @@
         if(IN.held.up)   py-=340*dt;
         if(IN.held.down) py+=340*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
-        var sp=aiSpd(), tgt=by-PH/2-ay, mv=Math.max(-sp,Math.min(sp,tgt*6));
+        var sp=aiSpd();
+        var gain = bvx>0 ? 7*diffMult() : (DA_DIFF==="easy" ? 1.4 : DA_DIFF==="hard" ? 6 : 3.5);
+        var tgt=by-PH/2-ay, mv=Math.max(-sp,Math.min(sp,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
         if(by<8){by=8;bvy=Math.abs(bvy);} if(by>H-8){by=H-8;bvy=-Math.abs(bvy);}

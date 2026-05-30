@@ -1667,15 +1667,47 @@
       if(IN.held.up && P.g){ P.vy=-560; P.g=false; }
       P.kc-=dt;
       if(IN.edge.action && P.kc<=0){ if(kick(P,1,440)) P.kc=0.3; }
-      // ---- AI ----
+      // ---- AI (strategic) ----
+      // Predict where the ball will be ~0.25s ahead, accounting for gravity & bounces
       A.tmr-=dt;
-      if(A.tmr<=0){ A.tmr=diff.react; A.tx=ball.x+ball.vx*0.12; }
+      if(A.tmr<=0){
+        A.tmr=diff.react;
+        var bx=ball.x, by=ball.y, bvx2=ball.vx, bvy2=ball.vy, tt=0, st=0.04;
+        while(tt<0.28){
+          bx+=bvx2*st; by+=bvy2*st; bvy2+=900*st;
+          if(by>GY-RBALL){ by=GY-RBALL; bvy2*=-0.55; bvx2*=0.86; }
+          if(bx<GL+RBALL){ bx=GL+RBALL; bvx2*=-0.7; }
+          if(bx>W-GL-RBALL){ bx=W-GL-RBALL; bvx2*=-0.7; }
+          tt+=st;
+        }
+        // Target: stand just to the RIGHT of the ball so a kick/bump propels it LEFT (toward player goal)
+        var ideal = bx + RB + 8;
+        var ownGoal = W - GL - 10;
+        if(bx > W*0.78){
+          // Ball deep in own zone — defend in front of own goal
+          A.tx = Math.min(ownGoal, Math.max(bx + RB + 4, W - 90));
+        } else if(bx < W*0.22){
+          // Ball deep in opponent's zone — don't overcommit, hold midfield
+          A.tx = W*0.55;
+        } else {
+          A.tx = ideal;
+        }
+        A.tx = Math.max(RB+2, Math.min(W-RB-2, A.tx));
+      }
       A.vx=0;
-      if(A.x < A.tx-8){ A.vx=diff.asp; A.face=1; }
-      else if(A.x > A.tx+8){ A.vx=-diff.asp; A.face=-1; }
-      if(A.g && ball.y < A.y-30 && Math.abs(ball.x-A.x)<70) { A.vy=-540; A.g=false; }
+      var aDx = A.tx - A.x;
+      if(aDx > 4){ A.vx=diff.asp; A.face=1; }
+      else if(aDx < -4){ A.vx=-diff.asp; A.face=-1; }
+      // Header jump: only if positioned (ball above, close, falling/horizontal) AND already on the right of the ball
+      if(A.g && ball.y < A.y-6 && Math.abs(ball.x-A.x)<RB+18 && ball.vy>-80 && ball.x <= A.x+6){
+        A.vy=-540; A.g=false;
+      }
+      // Kick: only when ball is at AI's feet AND on its LEFT side (kicking left from the right side of ball is safe)
       A.kc-=dt;
-      if(A.kc<=0 && Math.abs(ball.x-A.x)<RB+RBALL+10){ if(kick(A,-1,diff.akick)) A.kc=0.3; }
+      var bDx = ball.x - A.x, bDy = ball.y - A.y;
+      if(A.kc<=0 && Math.abs(bDx)<RB+RBALL+10 && Math.abs(bDy)<RB+10 && bDx <= 6){
+        if(kick(A,-1,diff.akick)) A.kc=0.32;
+      }
       // integrate players
       [P,A].forEach(function(pl){
         pl.vy+=1500*dt; pl.x+=pl.vx*dt; pl.y+=pl.vy*dt;

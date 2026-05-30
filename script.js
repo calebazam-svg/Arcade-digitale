@@ -150,6 +150,7 @@
     btn.textContent = d.toUpperCase();
     btn.className = "diff " + d;
   }
+  window.refreshDiffBtn = refreshDiffBtn;
   refreshDiffBtn();
   $("#diffBtn").addEventListener("click", () => {
     const cur = (window.DAGames && window.DAGames.getDifficulty && window.DAGames.getDifficulty()) || "normal";

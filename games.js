@@ -54,7 +54,7 @@
   });
 
   /* ── DOM ─────────────────────────────────────────────────── */
-  var modal, cv, ctx, elScore, elBest, elTitle, lbStartEl, lbEndEl, domBound = false;
+  var modal, cv, ctx, elScore, elBest, elTitle, lbStartEl, lbEndEl, diffSelEl, domBound = false;
   function bindDOM() {
     if (domBound) return;
     domBound = true;
@@ -86,6 +86,28 @@
     document.getElementById("ovStart").insertBefore(lbStartEl, document.getElementById("ovBtn"));
     lbEndEl = document.createElement("div");
     document.getElementById("ovEnd").insertBefore(lbEndEl, document.getElementById("ovRetry"));
+    // Difficulty selector on the start overlay
+    diffSelEl = document.createElement("div");
+    diffSelEl.className = "da-diffsel";
+    diffSelEl.innerHTML =
+      '<span>AI DIFFICULTY</span>' +
+      '<button data-d="easy">EASY</button>' +
+      '<button data-d="normal">NORMAL</button>' +
+      '<button data-d="hard">HARD</button>';
+    document.getElementById("ovStart").insertBefore(diffSelEl, document.getElementById("ovBtn"));
+    diffSelEl.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click", function(){
+        setDifficulty(b.dataset.d);
+        refreshDiffSel();
+        if(window.refreshDiffBtn) window.refreshDiffBtn();
+      });
+    });
+  }
+  function refreshDiffSel(){
+    if(!diffSelEl) return;
+    diffSelEl.querySelectorAll("button").forEach(function(b){
+      b.className = b.dataset.d === DA_DIFF ? "active "+DA_DIFF : "";
+    });
   }
 
   /* ── Helpers ─────────────────────────────────────────────── */
@@ -4199,6 +4221,7 @@
     document.getElementById("ovTitle").textContent = name;
     document.getElementById("ovHow").textContent   = HOWTO[curId] || "Use the controls below.";
     if(lbStartEl) lbStartEl.innerHTML = lbHTML(curId);
+    refreshDiffSel();
     show("ovStart"); hide("ovEnd");
     if(ctx){ clear("#0a0613","#150c2b"); px_txt("READY?",W/2,H/2-10,16,"#27e8ff"); }
     modal.classList.add("open"); modal.setAttribute("aria-hidden","false");

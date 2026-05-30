@@ -44,6 +44,15 @@ body::before{content:"";position:fixed;inset:0;z-index:0;
 .snd:hover,.profile-btn:hover,.diff:hover{border-color:var(--cyan);box-shadow:0 0 16px rgba(39,232,255,.35)}
 .diff{font-family:'Press Start 2P';font-size:9px;padding:0 12px;letter-spacing:1px;height:auto;width:auto;border-radius:8px;cursor:pointer}
 .diff.easy{color:var(--green)} .diff.normal{color:var(--cyan)} .diff.hard{color:var(--pink)}
+
+.da-diffsel{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap}
+.da-diffsel span{font-family:'Press Start 2P';font-size:9px;color:var(--muted);margin-right:6px}
+.da-diffsel button{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+  font-family:'Press Start 2P';font-size:9px;padding:6px 10px;border-radius:6px;cursor:pointer;letter-spacing:1px}
+.da-diffsel button:hover{color:var(--text)}
+.da-diffsel button.active.easy{color:var(--green);border-color:var(--green);box-shadow:0 0 12px rgba(70,255,156,.45)}
+.da-diffsel button.active.normal{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 12px rgba(39,232,255,.45)}
+.da-diffsel button.active.hard{color:var(--pink);border-color:var(--pink);box-shadow:0 0 12px rgba(255,62,165,.45)}
 .profile-btn{display:grid;place-items:center}
 
 /* Hero */

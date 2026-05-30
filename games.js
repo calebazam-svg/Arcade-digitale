@@ -724,11 +724,14 @@
     var state="play", sel=0, SHOP_N=WEAPONS.length+1;
     function spawn(){
       en=[];
-      var n=Math.max(2, Math.min(Math.round((3+wave+level)*diffMult()), 14));
+      var n, sMul;
+      if(DA_DIFF==="easy"){      n=Math.max(2, Math.round((3+wave+level)*0.6)); sMul=0.6; }
+      else if(DA_DIFF==="hard"){ n=Math.min(Math.round((3+wave+level)*1.3), 12); sMul=1.3; }
+      else {                     n=Math.min(3+wave+level, 11);                   sMul=1.0; }   // Normal = original
       for(var i=0;i<n;i++){
         var armored=level>=3 && Math.random()<0.25+level*0.03;
         en.push({ ang:rnd(-Math.PI,Math.PI), dist:rnd(640,940),
-                  spd:(34+wave*6+level*9)*diffMult(), hp:armored?2:1, arm:armored, d:false });
+                  spd:(34+wave*6+level*9)*sMul, hp:armored?2:1, arm:armored, d:false });
       }
     }
     spawn();
@@ -1157,12 +1160,12 @@
         if(IN.held.up)   py-=330*dt;
         if(IN.held.down) py+=330*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
-        var aiCap = DA_DIFF==="easy" ? 200 : DA_DIFF==="hard" ? 440 : 290;
-        var trackHot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 9.0 : 5.2;
-        var trackLazy = DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 6.0 : 2.5;
-        var lead = DA_DIFF==="hard" ? 0.18 : 0;
+        var aiCap, hot, lazy, lead;
+        if(DA_DIFF==="easy"){ aiCap=200; hot=3.0; lazy=1.2; lead=0; }
+        else if(DA_DIFF==="hard"){ aiCap=400; hot=7.5; lazy=4.5; lead=0.10; }
+        else { aiCap=280; hot=6; lazy=6; lead=0; }    // Normal = original behaviour
         var aimY = by + bvy*lead;
-        var gain = bvx>0 ? trackHot : trackLazy;
+        var gain = bvx>0 ? hot : lazy;
         var tgt=aimY-PH/2-ay, mv=Math.max(-aiCap,Math.min(aiCap,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
@@ -1899,8 +1902,9 @@
     var sYou=0, sOpp=0, pPts=0, aPts=0, win=false;
     var py=H/2-PH/2, ax=W-24, ay=H/2-PH/2, bx=W/2, by=H/2, bvx=0, bvy=0, rallies=0, served=false;
     function aiSpd(){
-      var m = DA_DIFF==="easy" ? 0.7 : DA_DIFF==="hard" ? 1.55 : 1.0;
-      return (240+round*30) * m;
+      if(DA_DIFF==="easy") return (240+round*30)*0.7;
+      if(DA_DIFF==="hard") return (240+round*30)*1.45;
+      return 250+round*38;           // Normal = original
     }
     function serve(){ bx=W/2; by=H/2; var sp=210+round*8+rallies*5; bvx=-sp; bvy=rnd(-0.3,0.3)*sp; served=true; }
     function newGame(){ pPts=0; aPts=0; py=H/2-PH/2; ay=H/2-PH/2; served=false; bvx=0; bvy=0; bx=W/2; by=H/2; rallies=0; }
@@ -2002,12 +2006,11 @@
         if(IN.held.up)   py-=340*dt;
         if(IN.held.down) py+=340*dt;
         py=Math.max(6,Math.min(H-6-PH,py));
-        var sp=aiSpd();
-        var hot = DA_DIFF==="easy" ? 3.0 : DA_DIFF==="hard" ? 9.0 : 5.2;
-        var lazy= DA_DIFF==="easy" ? 1.2 : DA_DIFF==="hard" ? 6.0 : 2.5;
-        var lead = DA_DIFF==="hard" ? 0.18 : 0;
+        var sp=aiSpd(), gain, lead;
+        if(DA_DIFF==="easy"){ gain = bvx>0 ? 3.0 : 1.2; lead=0; }
+        else if(DA_DIFF==="hard"){ gain = bvx>0 ? 7.5 : 4.5; lead=0.10; }
+        else { gain=6; lead=0; }                       // Normal = original
         var aimY = by + bvy*lead;
-        var gain = bvx>0 ? hot : lazy;
         var tgt=aimY-PH/2-ay, mv=Math.max(-sp,Math.min(sp,tgt*gain));
         ay+=mv*dt; ay=Math.max(6,Math.min(H-6-PH,ay));
         bx+=bvx*dt; by+=bvy*dt;
@@ -3518,6 +3521,18 @@
       px_txt("Can't be undone.",W/2,200,8,"#ff8a8a");
       px_txt("A: CONFIRM RESET   ◄ CANCEL",W/2,260,9,"#46ff9c");
     }
+    function drawSellConfirm(){
+      var r=activeR(); if(!r) return;
+      var refund=LOCS[r.locId].p;
+      ctx.save();ctx.globalAlpha=.92;rect(0,0,W,H,"#0a0613");ctx.restore();
+      px_txt("SELL THIS LOCATION?",W/2,90,13,"#ffd23e");
+      px_txt(r.name.toUpperCase().slice(0,20),W/2,124,10,"#fff");
+      px_txt(LOCS[r.locId].n,W/2,142,7,"#9b8fc7");
+      px_txt("REFUND: +$"+refund.toLocaleString(),W/2,180,11,"#46ff9c");
+      px_txt("You only get the location's original price.",W/2,210,6,"#ff8a8a");
+      px_txt("Upgrades, supplies, decor — gone.",W/2,224,6,"#ff8a8a");
+      px_txt("A: CONFIRM SELL   ◄ CANCEL",W/2,272,9,"#46ff9c");
+    }
 
     return {
       score:0, over:false,
@@ -3550,6 +3565,31 @@
 
         if(screen==="reset"){
           if(IN.edge.action){ doReset(); return; }
+          if(IN.edge.left){ screen="hub"; sel=0; return; }
+          return;
+        }
+
+        if(screen==="sellconfirm"){
+          if(IN.edge.action){
+            var r=activeR();
+            if(r){
+              var refund=LOCS[r.locId].p;
+              save.cash+=refund;
+              save.restaurants.splice(save.activeIdx,1);
+              if(save.restaurants.length===0){
+                save.activeIdx=-1;
+                saveAll();
+                setMsg("SOLD FOR +$"+refund.toLocaleString());
+                screen="map"; mapSel=0;
+              } else {
+                save.activeIdx=Math.max(0, save.activeIdx-1);
+                saveAll();
+                setMsg("SOLD FOR +$"+refund.toLocaleString());
+                screen="hub"; sel=0;
+              }
+            }
+            return;
+          }
           if(IN.edge.left){ screen="hub"; sel=0; return; }
           return;
         }
@@ -3625,7 +3665,7 @@
         }
 
         if(screen==="hub"){
-          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","SELL LOCATION","RENAME","RESET","QUIT"];
           if(IN.edge.up) sel=(sel+opts.length-1)%opts.length;
           if(IN.edge.down) sel=(sel+1)%opts.length;
           if(IN.edge.action){
@@ -3639,6 +3679,7 @@
             else if(o==="REVIEWS"){ screen="reviews"; }
             else if(o==="TRAVEL"){ screen="travel"; sel=save.activeIdx; }
             else if(o==="BUY LOCATION"){ screen="map"; mapSel=0; }
+            else if(o==="SELL LOCATION"){ screen="sellconfirm"; }
             else if(o==="RENAME"){ screen="rename"; kbSel=0; nameBuf=activeR().name||""; }
             else if(o==="RESET"){ screen="reset"; }
             else if(o==="QUIT"){ saveAll(); this.over=true; }
@@ -3862,6 +3903,11 @@
           return;
         }
 
+        if(screen==="sellconfirm"){
+          drawSellConfirm();
+          return;
+        }
+
         if(screen==="hub"){
           var r=activeR();
           var rg=genreById(r.genre);
@@ -3872,7 +3918,7 @@
           px_txt(rat?rat.toFixed(1)+"★":"NO REVIEWS",96,96,7,rat>=4?"#46ff9c":rat>=2.5?"#ffd23e":"#ff8a8a");
           px_txt("SERVED "+r.served,W/2,96,7,"#27e8ff");
           px_txt("SUP "+r.supplies+"/"+maxSupplies(r),W-96,96,7,r.supplies>10?"#fff":"#ff8a8a");
-          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","RENAME","RESET","QUIT"];
+          var opts=["SERVICE","MENU","STAFF","INTERIOR","SHOP","WORLD","REVIEWS","TRAVEL","BUY LOCATION","SELL LOCATION","RENAME","RESET","QUIT"];
           var top=108, h=16;
           for(var i=0;i<opts.length;i++){
             var y=top+i*h, hi=i===sel;

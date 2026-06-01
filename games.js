@@ -2999,6 +2999,19 @@
       var v = r && r.decor && r.decor[id];
       return v!==undefined && v!==false && v!==null;
     }
+    function decorData(r, id){
+      var v = r.decor[id];
+      if(typeof v==="boolean") return r.decor[id]={v:0,dx:0,dy:0};
+      if(typeof v==="number")  return r.decor[id]={v:v,dx:0,dy:0};
+      if(!v) return r.decor[id]={v:0,dx:0,dy:0};
+      if(v.dx===undefined) v.dx=0;
+      if(v.dy===undefined) v.dy=0;
+      if(v.v===undefined)  v.v=0;
+      return v;
+    }
+    function effSell(item, r){
+      return Math.round(item.sell * 4 * (1 + LOCS[r.locId].lux * 0.6));
+    }
     function decorScore(r){
       if(!r||!r.decor) return 0;
       var s=0;
@@ -3080,6 +3093,7 @@
     var dayState="idle", dayQuota=0, dayServed=0, dayLost=0, dayRev=0;
     var dayPassive=0, dayManaged=0;
     var custWaited=0;
+    var moving=null;     // id of decor item currently being placed
     var mapConfirm=false;
 
     if(!save){ screen="intro"; }
@@ -3334,7 +3348,14 @@
         if(ov!==undefined && ov!==false && ov!==null){
           var d=null;
           for(var j=0;j<DECOR.length;j++) if(DECOR[j].id===order[i]){ d=DECOR[j]; break; }
-          if(d) d.place(ov===true ? 0 : (ov|0));
+          if(d){
+            var dv=0, ddx=0, ddy=0;
+            if(typeof ov==="number"){ dv=ov; }
+            else if(typeof ov==="object" && ov){ dv=ov.v|0; ddx=ov.dx|0; ddy=ov.dy|0; }
+            ctx.save(); ctx.translate(ddx, ddy);
+            d.place(dv);
+            ctx.restore();
+          }
         }
       }
       // bottom divider
@@ -3850,31 +3871,37 @@
         }
 
         if(screen==="interior"){
-          if(exitBtnClicked()){ screen="hub"; sel=0; return; }
-          if(IN.edge.up) sel=(sel+DECOR.length-1)%DECOR.length;
+          if(exitBtnClicked()){ moving=null; screen="hub"; sel=0; saveAll(); return; }
+          // ---- MOVE / PLACEMENT MODE ----
+          if(moving){
+            var rrM=activeR(), dM=decorData(rrM, moving);
+            if(IN.edge.up)    dM.dy -= 6;
+            if(IN.edge.down)  dM.dy += 6;
+            if(IN.edge.left)  dM.dx -= 6;
+            if(IN.edge.right) dM.dx += 6;
+            if(IN.edge.action){ saveAll(); setMsg("PLACED"); moving=null; }
+            return;
+          }
+          // ---- LIST MODE ----
+          if(IN.edge.up)   sel=(sel+DECOR.length-1)%DECOR.length;
           if(IN.edge.down) sel=(sel+1)%DECOR.length;
+          if(IN.edge.left){ screen="hub"; sel=0; return; }
           var rr2=activeR(), dc=DECOR[sel];
           if(decorOwned(rr2, dc.id)){
-            // Owned: left/right cycles the style variant; A also cycles
-            var cur = rr2.decor[dc.id]; if(cur===true) cur=0;
-            var n = dc.styles ? dc.styles.length : 1;
-            if(IN.edge.right || IN.edge.action){ rr2.decor[dc.id] = (cur+1)%n; saveAll(); }
-            else if(IN.edge.left){
-              // Treat ◄ as "back to hub" when at default style; otherwise cycle backward
-              if(cur===0){ screen="hub"; sel=0; return; }
-              rr2.decor[dc.id] = (cur+n-1)%n; saveAll();
-            }
+            var dat = decorData(rr2, dc.id);
+            var nStyles = dc.styles ? dc.styles.length : 1;
+            if(IN.edge.right){ dat.v = (dat.v+1)%nStyles; saveAll(); }
+            if(IN.edge.action){ moving = dc.id; setMsg("DPAD MOVES   A SAVES"); }
           } else {
             if(IN.edge.action){
               if(save.cash>=dc.cost){
                 save.cash-=dc.cost;
                 if(!rr2.decor) rr2.decor={};
-                rr2.decor[dc.id]=0;
+                rr2.decor[dc.id]={v:0,dx:0,dy:0};
                 saveAll();
                 setMsg("INSTALLED "+dc.n);
               } else setMsg("NOT ENOUGH CASH");
             }
-            if(IN.edge.left){ screen="hub"; sel=0; }
           }
           return;
         }
@@ -4046,7 +4073,7 @@
           else if(cust){
             drawCustomer(W/2,178);
             drawSpeechBubble(W/2,160,cust.item.id);
-            px_txt(cust.item.n,W/2,116,9,"#fff");
+            px_txt(cust.item.n+"  "+fmt$(effSell(cust.item, r)),W/2,116,9,"#fff");
             var stepsStr="";
             for(var k=0;k<cust.item.steps.length;k++){
               if(k) stepsStr+=" → ";
@@ -4078,7 +4105,7 @@
             drawFood(item.id, 12, y-12, 18);
             if(unlocked){
               px_txt((on?"[X] ":"[ ] ")+item.n, 38, y+2, 7, on?"#46ff9c":"#9b8fc7","left");
-              px_txt("$"+item.sell+"  "+item.steps.length+"STEP", W-12, y+2, 6, "#ffd23e","right");
+              px_txt(fmt$(effSell(item, r))+"  "+item.steps.length+"STEP", W-12, y+2, 6, "#ffd23e","right");
             } else {
               var can=save.cash>=item.unlock;
               px_txt("[$] "+item.n, 38, y+2, 7, can?"#ffaa5a":"#5a4a7a","left");
@@ -4113,6 +4140,21 @@
         if(screen==="interior"){
           var r=activeR();
           drawInterior(r);
+          if(moving){
+            // Flash a yellow ring on the item being moved
+            ctx.save();
+            ctx.globalAlpha = 0.5 + 0.5*Math.sin(Date.now()/120);
+            ctx.strokeStyle = "#ffd23e"; ctx.lineWidth = 3;
+            ctx.strokeRect(2, 32, W-4, 186);
+            ctx.restore();
+            px_txt("PLACING — "+(function(){
+              for(var jj=0;jj<DECOR.length;jj++) if(DECOR[jj].id===moving) return DECOR[jj].n;
+              return moving;
+            })(), W/2, 46, 9, "#ffd23e");
+            px_txt("D-PAD: MOVE   A: SAVE   ✕ EXIT",W/2,228,8,"#46ff9c");
+            if(msgT>0) px_txt(msg,W/2,246,7,"#9b8fc7");
+            return;
+          }
           px_txt("INTERIOR — DECOR +"+decorScore(r),W/2,46,9,"#ffd23e");
           var listY=226, h=22, maxV=5;
           var startI=Math.max(0, Math.min(DECOR.length-maxV, sel-Math.floor(maxV/2)));
@@ -4124,10 +4166,10 @@
             px_txt(item.n,16,y+2,7,hi?"#fff":(owned?"#46ff9c":(can?"#cdbff0":"#5a4a7a")),"left");
             px_txt("+"+item.score,128,y+2,6,"#9b6bff","left");
             if(owned){
-              var v = r.decor[item.id]; if(v===true) v=0;
-              var label = (item.styles && item.styles[v]) || "STYLE "+(v+1);
-              px_txt("◄ "+label+" ►", W-16, y+2, 6, hi?"#27e8ff":"#9b8fc7", "right");
-              if(hi) px_txt("A cycles style", W-16, y+12, 5, "#5a7a9a", "right");
+              var dat = decorData(r, item.id);
+              var label = (item.styles && item.styles[dat.v]) || ("STYLE "+(dat.v+1));
+              px_txt(label+" ►", W-16, y+2, 6, hi?"#27e8ff":"#9b8fc7", "right");
+              if(hi) px_txt("A: MOVE   ► STYLE", W-16, y+12, 5, "#5a7a9a", "right");
             } else {
               px_txt(fmt$(item.cost),W-16,y+2,8,can?"#ffd23e":"#ff8a8a","right");
             }

@@ -2403,7 +2403,7 @@
       {id:"autoplate",n:"AUTO PLATING",     cost:5000,  desc:"PLATE step auto-completes at 90%"},
       {id:"turbo",    n:"TURBO BURNER",     cost:6000,  desc:"COOK / FRY / BOIL bar 20% slower (easier)"},
       {id:"truffle",  n:"TRUFFLE OIL",      cost:8000,  desc:"+1 star chance on dishes $20+"},
-      {id:"sousplus", n:"SOUS+",            cost:10000, desc:"Sous chef now auto-handles steps 1 AND 2"}
+      {id:"sousplus", n:"SOUS+",            cost:10000, desc:"Auto-handles first 2 cooking steps (standalone)"}
     ];
 
     var MKT=[
@@ -3164,11 +3164,12 @@
       var r=activeR(); if(!cust) return;
       if(r.supplies<=0){ setMsg("OUT OF SUPPLIES"); return; }
       cookActive=true; cookStepIdx=0; cookSteps=cust.item.steps.length; cookResults=[];
-      if(r.ups.sous){
-        // SOUS+ mod handles 2 steps instead of 1
-        var auto = (r.mods && r.mods.sousplus && cookSteps>2) ? 2 : (cookSteps>1 ? 1 : 0);
-        for(var as=0; as<auto; as++){ cookResults.push(0.85); cookStepIdx++; }
-      }
+      // SOUS CHEF upgrade auto-handles step 1.
+      // SOUS+ mod auto-handles 2 steps and works standalone (no SOUS CHEF needed).
+      var auto = 0;
+      if(r.ups.sous && cookSteps>1) auto = 1;
+      if(r.mods && r.mods.sousplus){ auto = Math.min(cookSteps-1, 2); if(auto<0) auto=0; }
+      for(var as=0; as<auto; as++){ cookResults.push(0.85); cookStepIdx++; }
       loadCookStep();
     }
 
